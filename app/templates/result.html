@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>결과 - Toon-Minutes</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>생성된 만화</h1>
+
+        <div class="comic-container">
+            {% for comic in comics %}
+            <div class="comic">
+                <h2>Part {{ comic.part_number }}</h2>
+                <div class="panels">
+                    {% for i in range(comic.image_paths|length) %}
+                    <div class="panel">
+                        <img src="{{ comic.image_paths[i] }}" alt="Panel {{ i + 1 }}">
+                        <p>{{ comic.panels[i].dialogue or '' }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <a href="/" class="back-link">새로운 만화 생성</a>
+    </div>
+</body>
+</html>
