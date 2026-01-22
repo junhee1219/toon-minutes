@@ -18,7 +18,7 @@
 | Database | SQLite (SQLAlchemy ORM) |
 | Template | Jinja2 (HTML 템플릿) |
 | Async Task | FastAPI BackgroundTasks |
-| Storage | 로컬 파일시스템 (추후 S3 확장 고려) |
+| Storage | AWS S3 |
 | External APIs | Google Gemini API (텍스트 + 이미지 생성) |
 
 ## 프로젝트 구조
@@ -118,6 +118,10 @@ Gemini Image(NanoBanana) API를 사용하여 이미지 생성
 - 필수 환경변수:
   - `GEMINI_API_KEY` (텍스트 분석 + 이미지 생성 모두 사용)
   - `DATABASE_URL` (기본값: `sqlite+aiosqlite:///./toon_minutes.db`)
+  - `S3_ACCESS_KEY` (AWS Access Key)
+  - `S3_SECRET_KEY` (AWS Secret Key)
+  - `S3_BUCKET` (S3 버킷 이름)
+  - `S3_REGION` (기본값: `ap-northeast-2`)
 
 ### 코드 스타일
 - PEP 8 준수
@@ -126,16 +130,8 @@ Gemini Image(NanoBanana) API를 사용하여 이미지 생성
 
 ## 확장 고려사항
 
-### Storage 추상화
-현재 로컬 파일시스템 사용, S3 전환을 위한 인터페이스 설계:
-```python
-class StorageInterface(ABC):
-    @abstractmethod
-    async def save(self, data: bytes, filename: str) -> str: ...
-
-    @abstractmethod
-    async def get_url(self, filename: str) -> str: ...
-```
+### Storage
+현재 AWS S3 사용. `ImageServiceInterface` 추상화로 다른 스토리지로 교체 가능.
 
 ### 인증 (Auth)
 - 현재: 인증 없음
