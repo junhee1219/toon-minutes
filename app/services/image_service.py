@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from io import BytesIO
@@ -5,6 +6,7 @@ from io import BytesIO
 import boto3
 from google import genai
 from google.genai import types
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.config import settings
 
@@ -34,15 +36,24 @@ class NanoBananaImageService(ImageServiceInterface):
         )
         self.bucket = settings.s3_bucket
 
-    async def generate_image(self, prompt: str) -> str:
-        """Gemini API로 이미지 생성 후 S3에 업로드"""
-        response = await self.client.aio.models.generate_content(
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=4, max=60),
+        reraise=True,
+    )
+    async def _generate_with_retry(self, prompt: str):
+        """재시도 로직이 포함된 이미지 생성"""
+        return await self.client.aio.models.generate_content(
             model=self.model,
             contents=[prompt],
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE", "TEXT"],
             ),
         )
+
+    async def generate_image(self, prompt: str) -> str:
+        """Gemini API로 이미지 생성 후 S3에 업로드"""
+        response = await self._generate_with_retry(prompt)
 
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
