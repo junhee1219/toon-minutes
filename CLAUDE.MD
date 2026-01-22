@@ -19,7 +19,7 @@
 | Template | Jinja2 (HTML 템플릿) |
 | Async Task | FastAPI BackgroundTasks |
 | Storage | 로컬 파일시스템 (추후 S3 확장 고려) |
-| External APIs | Gemini LLM, NanoBanana API |
+| External APIs | Google Gemini API (텍스트 + 이미지 생성) |
 
 ## 프로젝트 구조
 
@@ -94,8 +94,9 @@ Gemini API를 사용하여 회의록을 분석하고 4컷 시나리오를 생성
 - 반환 형식: 각 패널의 설명, 대사, 이미지 프롬프트
 
 ### ImageService
-NanoBanana API를 사용하여 이미지 생성 (추상화 인터페이스로 설계)
+Gemini Image(NanoBanana) API를 사용하여 이미지 생성
 - `generate_image(prompt: str) -> str` (이미지 경로 반환)
+- 모델: `gemini-2.5-flash-preview-04-17`
 - 인터페이스 추상화로 다른 이미지 생성 서비스로 교체 가능
 
 ### ComicService
@@ -115,9 +116,8 @@ NanoBanana API를 사용하여 이미지 생성 (추상화 인터페이스로 �
 - 모든 API 키와 설정은 `.env` 파일로 관리
 - `python-dotenv`로 환경변수 로드
 - 필수 환경변수:
-  - `GEMINI_API_KEY`
-  - `NANOBANANA_API_KEY`
-  - `DATABASE_URL` (기본값: `sqlite:///./toon_minutes.db`)
+  - `GEMINI_API_KEY` (텍스트 분석 + 이미지 생성 모두 사용)
+  - `DATABASE_URL` (기본값: `sqlite+aiosqlite:///./toon_minutes.db`)
 
 ### 코드 스타일
 - PEP 8 준수

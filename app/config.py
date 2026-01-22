@@ -7,9 +7,8 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite+aiosqlite:///./toon_minutes.db"
 
-    # External APIs
+    # External APIs (NanoBanana는 Gemini 이미지 생성 모델이므로 동일한 API 키 사용)
     gemini_api_key: str = ""
-    nanobanana_api_key: str = ""
 
     # Storage
     static_dir: str = "app/static"
