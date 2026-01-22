@@ -47,6 +47,10 @@ class NanoBananaImageService(ImageServiceInterface):
             model=self.model,
             contents=[prompt],
             config=types.GenerateContentConfig(
+                image_config=types.ImageConfig(
+                    aspect_ratio="16:9",
+                    image_size="2K",
+                ),
                 response_modalities=["IMAGE", "TEXT"],
             ),
         )
