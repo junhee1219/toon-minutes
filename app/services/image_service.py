@@ -23,7 +23,7 @@ class NanoBananaImageService(ImageServiceInterface):
 
     def __init__(self):
         self.client = genai.Client(api_key=settings.gemini_api_key)
-        self.model = "gemini-2.5-flash-preview-04-17"  # 이미지 생성 지원 모델
+        self.model = "gemini-3-pro-image-preview"  # 이미지 생성 지원 모델
         self.images_dir = Path(settings.images_dir)
         self.images_dir.mkdir(parents=True, exist_ok=True)
 

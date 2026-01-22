@@ -14,9 +14,16 @@ class Settings(BaseSettings):
     static_dir: str = "app/static"
     images_dir: str = "app/static/images"
 
+    # S3 (선택)
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    s3_bucket: str = ""
+    s3_region: str = "ap-northeast-2"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 settings = Settings()
