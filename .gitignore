@@ -1,0 +1,20 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+.venv/
+
+# Database
+*.db
+
+# IDE
+.idea/
+.vscode/
+
+# Generated images
+app/static/images/generated/
