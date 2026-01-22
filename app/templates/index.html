@@ -5,28 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Toon-Minutes</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <h1>Toon-Minutes</h1>
-        <p>회의록을 4컷 만화로 변환합니다</p>
-
-        <form id="generate-form">
-            <textarea
-                id="meeting-text"
-                name="meeting_text"
-                placeholder="회의록을 입력하세요..."
-                rows="10"
-                required
-            ></textarea>
-            <button type="submit">만화 생성</button>
-        </form>
-
-        <div id="status" class="hidden">
-            <p>상태: <span id="status-text">대기중</span></p>
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>Toon-Minutes</h1>
+            <p>회의록을 4컷 만화로 변환합니다</p>
         </div>
 
-        <div id="result" class="hidden"></div>
+        <!-- 입력 폼 -->
+        <div id="form-section" class="card">
+            <form id="generate-form">
+                <textarea
+                    id="meeting-text"
+                    name="meeting_text"
+                    placeholder="회의록을 입력하세요...
+
+예시:
+- 김팀장: 이번 프로젝트 일정을 논의하겠습니다.
+- 박대리: 디자인은 다음 주까지 완료 가능합니다.
+- 이사원: 개발은 2주 정도 필요할 것 같습니다."
+                    rows="10"
+                    required
+                ></textarea>
+                <button type="submit">만화 생성하기</button>
+            </form>
+        </div>
+
+        <!-- 로딩 섹션 -->
+        <div id="loading-section" class="hidden">
+            <div class="loading-card">
+                <!-- 로딩 애니메이션 -->
+                <div class="loading-animation">
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                    <div class="loading-dot"></div>
+                </div>
+
+                <!-- 프로그레스 바 -->
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progress-status">준비 중...</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                </div>
+
+                <!-- 메시지 영역 -->
+                <div class="message-area">
+                    <div class="status-badge" id="status-badge">만화 생성 중</div>
+                    <p class="rotating-message" id="rotating-message">
+                        회의 내용을 분석하고 있습니다...
+                    </p>
+                </div>
+
+                <!-- 팁 영역 -->
+                <div class="tip-area">
+                    <p class="tip-text">
+                        <span class="icon">💡</span>
+                        <span id="tip-text">만화 생성에는 보통 1-2분 정도 소요됩니다</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 에러 메시지 -->
+        <div id="error-section" class="hidden">
+            <div class="error-message" id="error-message"></div>
+        </div>
     </div>
 
     <script src="/static/js/app.js"></script>

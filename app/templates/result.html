@@ -5,11 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>결과 - Toon-Minutes</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <h1>생성된 만화</h1>
+        <!-- 헤더 -->
+        <div class="result-header">
+            <h1>생성된 만화</h1>
+            <p>회의록이 4컷 만화로 변환되었습니다</p>
+        </div>
 
+        <!-- 만화 컨테이너 -->
         <div class="comic-container">
             {% for comic in comics %}
             <div class="comic">
@@ -17,16 +24,80 @@
                 <div class="panels">
                     {% for i in range(comic.image_paths|length) %}
                     <div class="panel">
-                        <img src="{{ comic.image_paths[i] }}" alt="Panel {{ i + 1 }}">
-                        <p>{{ comic.panels[i].dialogue or '' }}</p>
+                        <a href="{{ comic.image_paths[i] }}" target="_blank" download>
+                            <img src="{{ comic.image_paths[i] }}" alt="Panel {{ i + 1 }}">
+                        </a>
+                        {% if comic.panels[i] and comic.panels[i].dialogue %}
+                        <p>{{ comic.panels[i].dialogue }}</p>
+                        {% endif %}
                     </div>
                     {% endfor %}
+                </div>
+
+                <!-- 다운로드 섹션 -->
+                <div class="download-section">
+                    <button class="download-btn" onclick="downloadAll({{ loop.index0 }})">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7,10 12,15 17,10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        전체 다운로드
+                    </button>
                 </div>
             </div>
             {% endfor %}
         </div>
 
-        <a href="/" class="back-link">새로운 만화 생성</a>
+        <!-- 새로 만들기 링크 -->
+        <div style="text-align: center;">
+            <a href="/" class="back-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" y1="12" x2="5" y2="12"/>
+                    <polyline points="12,19 5,12 12,5"/>
+                </svg>
+                새로운 만화 생성
+            </a>
+        </div>
     </div>
+
+    <script>
+        // 만화 데이터를 JavaScript로 전달
+        const comicsData = {{ comics | tojson | safe }};
+
+        // 개별 이미지 다운로드
+        async function downloadImage(url, filename) {
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            } catch (error) {
+                // CORS 문제시 새 탭에서 열기
+                window.open(url, '_blank');
+            }
+        }
+
+        // 전체 다운로드
+        async function downloadAll(comicIndex) {
+            const comic = comicsData[comicIndex];
+            const imagePaths = comic.image_paths;
+
+            for (let i = 0; i < imagePaths.length; i++) {
+                const url = imagePaths[i];
+                const filename = `toon-minutes-part${comic.part_number}-panel${i + 1}.png`;
+
+                await downloadImage(url, filename);
+
+                // 다운로드 간 약간의 딜레이
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+    </script>
 </body>
 </html>
