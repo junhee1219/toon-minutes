@@ -60,12 +60,15 @@ class NanoBananaImageService(ImageServiceInterface):
                 filename = f"toon-minutes/{uuid.uuid4()}.png"
                 image_data = part.inline_data.data
 
-                # S3 업로드
+                # S3 업로드 (public-read로 설정)
                 self.s3.upload_fileobj(
                     BytesIO(image_data),
                     self.bucket,
                     filename,
-                    ExtraArgs={"ContentType": "image/png"},
+                    ExtraArgs={
+                        "ContentType": "image/png",
+                        "ACL": "public-read",
+                    },
                 )
 
                 # S3 URL 반환
