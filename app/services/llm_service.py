@@ -1,8 +1,12 @@
+import logging
+
 from google import genai
 from google.genai import types
 
 from app.config import settings
 from app.schemas import PanelScenario
+
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = """
@@ -100,8 +104,21 @@ class LLMService:
                 response_schema=list[PanelScenario],
             ),
         )
-        print(response)
+        logger.info(f"Gemini 응답 수신: model={response.model_version}")
+        logger.debug(f"응답 전체: {response}")
+
+        if response.candidates:
+            candidate = response.candidates[0]
+            logger.info(f"finish_reason: {candidate.finish_reason}")
+            if candidate.content and candidate.content.parts:
+                logger.info(f"content parts: {len(candidate.content.parts)}")
+            else:
+                logger.warning("content가 비어있음")
+            if hasattr(candidate, 'safety_ratings') and candidate.safety_ratings:
+                logger.warning(f"safety_ratings: {candidate.safety_ratings}")
+
         if not response.parsed:
+            logger.error(f"LLM 응답 파싱 실패: {response}")
             raise ValueError(f"LLM 응답 파싱 실패: {response}")
 
         return response.parsed  # 이미 list[PanelScenario]
