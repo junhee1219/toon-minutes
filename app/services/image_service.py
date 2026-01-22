@@ -1,8 +1,8 @@
-import os
 import uuid
 from abc import ABC, abstractmethod
-from pathlib import Path
+from io import BytesIO
 
+import boto3
 from google import genai
 from google.genai import types
 
@@ -14,7 +14,7 @@ class ImageServiceInterface(ABC):
 
     @abstractmethod
     async def generate_image(self, prompt: str) -> str:
-        """프롬프트로 이미지를 생성하고 저장된 경로 반환"""
+        """프롬프트로 이미지를 생성하고 URL 반환"""
         pass
 
 
@@ -23,14 +23,20 @@ class NanoBananaImageService(ImageServiceInterface):
 
     def __init__(self):
         self.client = genai.Client(api_key=settings.gemini_api_key)
-        self.model = "gemini-3-pro-image-preview"  # 이미지 생성 지원 모델
-        self.images_dir = Path(settings.images_dir)
-        self.images_dir.mkdir(parents=True, exist_ok=True)
+        self.model = "gemini-3-pro-image-preview"
+
+        # S3 클라이언트
+        self.s3 = boto3.client(
+            "s3",
+            aws_access_key_id=settings.s3_access_key,
+            aws_secret_access_key=settings.s3_secret_key,
+            region_name=settings.s3_region,
+        )
+        self.bucket = settings.s3_bucket
 
     async def generate_image(self, prompt: str) -> str:
-        """Gemini API로 이미지 생성 후 로컬에 저장"""
-        # 이미지 생성 요청
-        response = self.client.models.generate_content(
+        """Gemini API로 이미지 생성 후 S3에 업로드"""
+        response = await self.client.aio.models.generate_content(
             model=self.model,
             contents=[prompt],
             config=types.GenerateContentConfig(
@@ -38,20 +44,21 @@ class NanoBananaImageService(ImageServiceInterface):
             ),
         )
 
-        # 이미지 추출 및 저장
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
-                # 고유 파일명 생성
-                filename = f"{uuid.uuid4()}.png"
-                filepath = self.images_dir / filename
-
-                # 이미지 저장
+                filename = f"toon-minutes/{uuid.uuid4()}.png"
                 image_data = part.inline_data.data
-                with open(filepath, "wb") as f:
-                    f.write(image_data)
 
-                # 웹에서 접근 가능한 경로 반환
-                return f"/static/images/{filename}"
+                # S3 업로드
+                self.s3.upload_fileobj(
+                    BytesIO(image_data),
+                    self.bucket,
+                    filename,
+                    ExtraArgs={"ContentType": "image/png"},
+                )
+
+                # S3 URL 반환
+                return f"https://{self.bucket}.s3.{settings.s3_region}.amazonaws.com/{filename}"
 
         raise ValueError("이미지 생성 실패: 응답에 이미지가 없습니다")
 

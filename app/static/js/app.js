@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusText.textContent = getStatusMessage(status.status);
 
             if (status.status === 'completed') {
-                window.location.href = `/result/${taskId}`;
+                window.location.href = `/view/${taskId}`;
                 return;
             }
 

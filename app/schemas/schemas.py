@@ -21,9 +21,7 @@ class TaskStatus(BaseModel):
 class PanelScenario(BaseModel):
     """4컷 만화 각 패널의 시나리오"""
 
-    panel_number: int
-    description: str
-    dialogue: str | None = None
+    episode_number: int
     image_prompt: str
 
 
