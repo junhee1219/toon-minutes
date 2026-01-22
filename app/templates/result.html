@@ -5,18 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>결과 - Toon-Minutes</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <!-- 헤더 -->
         <div class="result-header">
             <h1>생성된 만화</h1>
             <p>회의록이 4컷 만화로 변환되었습니다</p>
         </div>
 
-        <!-- 만화 컨테이너 -->
         <div class="comic-container">
             {% for comic in comics %}
             <div class="comic">
@@ -34,10 +30,9 @@
                     {% endfor %}
                 </div>
 
-                <!-- 다운로드 섹션 -->
                 <div class="download-section">
                     <button class="download-btn" onclick="downloadAll({{ loop.index0 }})">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="7,10 12,15 17,10"/>
                             <line x1="12" y1="15" x2="12" y2="3"/>
@@ -49,23 +44,30 @@
             {% endfor %}
         </div>
 
-        <!-- 새로 만들기 링크 -->
         <div style="text-align: center;">
             <a href="/" class="back-link">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="19" y1="12" x2="5" y2="12"/>
                     <polyline points="12,19 5,12 12,5"/>
                 </svg>
                 새로운 만화 생성
             </a>
         </div>
+
+        <footer class="footer">
+            <div class="footer-links">
+                <a href="https://kittly.shop" target="_blank">Kittly - 도구 모음</a>
+                <a href="https://ploma.site" target="_blank">Ploma - 팀 뽀모도로</a>
+            </div>
+            <p class="footer-contact">
+                문의/제안: <a href="mailto:help-whatever@naver.com">help-whatever@naver.com</a>
+            </p>
+        </footer>
     </div>
 
     <script>
-        // 만화 데이터를 JavaScript로 전달
         const comicsData = {{ comics | tojson | safe }};
 
-        // 개별 이미지 다운로드
         async function downloadImage(url, filename) {
             try {
                 const response = await fetch(url);
@@ -78,12 +80,10 @@
                 document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
             } catch (error) {
-                // CORS 문제시 새 탭에서 열기
                 window.open(url, '_blank');
             }
         }
 
-        // 전체 다운로드
         async function downloadAll(comicIndex) {
             const comic = comicsData[comicIndex];
             const imagePaths = comic.image_paths;
@@ -91,10 +91,7 @@
             for (let i = 0; i < imagePaths.length; i++) {
                 const url = imagePaths[i];
                 const filename = `toon-minutes-part${comic.part_number}-panel${i + 1}.png`;
-
                 await downloadImage(url, filename);
-
-                // 다운로드 간 약간의 딜레이
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
         }
