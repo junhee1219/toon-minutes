@@ -156,7 +156,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 환경변수 설정
-cp .env.example .env
+cp .env
 # .env 파일에 API 키 입력
 
 # 서버 실행
