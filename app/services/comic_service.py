@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,11 +25,19 @@ class ComicService:
             # 2. LLM으로 시나리오 생성
             panels = await llm_service.analyze_meeting(meeting_text)
 
-            # 3. 각 패널 이미지 생성
-            image_paths = []
-            for panel in panels:
-                path = await image_service.generate_image(panel.image_prompt)
-                image_paths.append(path)
+            # 3. 각 패널 이미지 병렬 생성
+            async def generate_with_index(index: int, prompt: str):
+                path = await image_service.generate_image(prompt)
+                return index, path
+
+            tasks = [
+                generate_with_index(i, panel.image_prompt)
+                for i, panel in enumerate(panels)
+            ]
+            results = await asyncio.gather(*tasks)
+
+            # 순서대로 정렬
+            image_paths = [path for _, path in sorted(results, key=lambda x: x[0])]
 
             # 4. Comic 저장
             comic = Comic(

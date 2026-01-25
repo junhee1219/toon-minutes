@@ -5,25 +5,41 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Task, Comic
-from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario
+from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario, GenerateResponse
 from app.services.comic_service import comic_service
+from app.services.llm_service import llm_service
 
 router = APIRouter(tags=["comic"])
 
 
-@router.post("/generate", response_model=TaskStatus)
+@router.post("/generate", response_model=GenerateResponse)
 async def generate_comic(
     request: TaskCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """만화 생성 요청"""
-    task = Task(meeting_text=request.meeting_text)
+    """만화 생성 요청 (입력 검증 포함)"""
+    # 1. 입력 검증 + 대기 메시지 생성
+    validation = await llm_service.validate_input(request.meeting_text)
+
+    # 2. Task 생성 (거부/통과 모두 저장)
+    task = Task(
+        meeting_text=request.meeting_text,
+        is_valid=validation.is_valid,
+        reject_reason=validation.reject_reason,
+        status="rejected" if not validation.is_valid else "pending",
+    )
     db.add(task)
     await db.commit()
     await db.refresh(task)
 
-    # 백그라운드에서 만화 생성
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail=validation.reject_reason or "만화로 변환할 수 없는 입력입니다.",
+        )
+
+    # 3. 백그라운드에서 만화 생성
     background_tasks.add_task(
         comic_service.create_comic,
         db,
@@ -31,12 +47,15 @@ async def generate_comic(
         request.meeting_text,
     )
 
-    return TaskStatus(
-        id=task.id,
-        status=task.status,
-        error_message=task.error_message,
-        created_at=task.created_at,
-        updated_at=task.updated_at,
+    return GenerateResponse(
+        task=TaskStatus(
+            id=task.id,
+            status=task.status,
+            error_message=task.error_message,
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+        ),
+        messages=validation.messages,
     )
 
 
