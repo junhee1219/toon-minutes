@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Boolean
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -19,6 +19,8 @@ class Task(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     status = Column(String(20), default="pending")  # pending | processing | completed | failed
     meeting_text = Column(Text, nullable=False)
+    is_valid = Column(Boolean, default=True)
+    reject_reason = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -39,3 +41,5 @@ class Comic(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     task = relationship("Task", back_populates="comics")
+
+

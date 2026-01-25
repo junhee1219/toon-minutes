@@ -2,6 +2,14 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class ValidationResult(BaseModel):
+    """입력 검증 결과"""
+
+    is_valid: bool
+    reject_reason: str | None = None
+    messages: list[str] = []
+
+
 class TaskCreate(BaseModel):
     """만화 생성 요청"""
 
@@ -34,6 +42,13 @@ class ComicResponse(BaseModel):
     panels: list[PanelScenario]
     image_paths: list[str]
     created_at: datetime
+
+
+class GenerateResponse(BaseModel):
+    """만화 생성 요청 응답 (검증 통과 시)"""
+
+    task: TaskStatus
+    messages: list[str] = []
 
 
 class TaskResponse(BaseModel):

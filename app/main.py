@@ -2,6 +2,7 @@ import json
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -25,6 +26,21 @@ app = FastAPI(
     description="회의록을 4컷 만화로 변환하는 서비스",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# CORS 설정
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        "https://*.github.io",
+    ],
+    allow_origin_regex=r"https://.*\.github\.io",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # 정적 파일 및 템플릿 설정
