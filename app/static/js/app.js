@@ -13,6 +13,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let messageRotationInterval = null;
     let progressInterval = null;
     let currentProgress = 0;
+    let visitorId = null;
+
+    // FingerprintJS 초기화
+    if (window.FingerprintJS) {
+        FingerprintJS.load().then(fp => fp.get()).then(result => {
+            visitorId = result.visitorId;
+        });
+    }
 
     const fallbackMessages = [
         "만화 컷을 구성하고 있어요",
@@ -142,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ meeting_text: meetingText }),
+                body: JSON.stringify({ meeting_text: meetingText, fingerprint: visitorId }),
             });
 
             if (!response.ok) {

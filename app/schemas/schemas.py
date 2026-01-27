@@ -14,6 +14,7 @@ class TaskCreate(BaseModel):
     """만화 생성 요청"""
 
     meeting_text: str
+    fingerprint: str | None = None
 
 
 class TaskStatus(BaseModel):

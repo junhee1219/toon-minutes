@@ -1,3 +1,3 @@
-from .models import Task, Comic
+from .models import Task, Comic, Visitor
 
-__all__ = ["Task", "Comic"]
+__all__ = ["Task", "Comic", "Visitor"]

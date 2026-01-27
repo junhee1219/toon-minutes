@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Task, Comic
+from app.models import Task, Comic, Visitor
 from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario, GenerateResponse
 from app.services.comic_service import comic_service
 from app.services.llm_service import llm_service
@@ -19,11 +19,30 @@ async def generate_comic(
     db: AsyncSession = Depends(get_db),
 ):
     """만화 생성 요청 (입력 검증 포함)"""
-    # 1. 입력 검증 + 대기 메시지 생성
+    # 1. Visitor upsert
+    visitor_id = None
+    if request.fingerprint:
+        result = await db.execute(
+            select(Visitor).where(Visitor.fingerprint == request.fingerprint)
+        )
+        visitor = result.scalar_one_or_none()
+
+        if visitor:
+            visitor.visit_count += 1
+        else:
+            visitor = Visitor(fingerprint=request.fingerprint, visit_count=1)
+            db.add(visitor)
+
+        await db.commit()
+        await db.refresh(visitor)
+        visitor_id = visitor.id
+
+    # 2. 입력 검증 + 대기 메시지 생성
     validation = await llm_service.validate_input(request.meeting_text)
 
-    # 2. Task 생성 (거부/통과 모두 저장)
+    # 3. Task 생성 (거부/통과 모두 저장)
     task = Task(
+        visitor_id=visitor_id,
         meeting_text=request.meeting_text,
         is_valid=validation.is_valid,
         reject_reason=validation.reject_reason,

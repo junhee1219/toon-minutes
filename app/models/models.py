@@ -17,13 +17,28 @@ def generate_uuid() -> str:
     return str(uuid.uuid4())
 
 
+class Visitor(Base):
+    """핑거프린트 기반 방문자"""
+
+    __tablename__ = "visitors"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    fingerprint = Column(String(64), unique=True, nullable=False, index=True)
+    first_seen = Column(DateTime, default=now_kst)
+    last_seen = Column(DateTime, default=now_kst, onupdate=now_kst)
+    visit_count = Column(Integer, default=0)
+
+    tasks = relationship("Task", back_populates="visitor")
+
+
 class Task(Base):
     """만화 생성 작업"""
 
     __tablename__ = "tasks"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    status = Column(String(20), default="pending")  # pending | processing | completed | failed
+    visitor_id = Column(String(36), ForeignKey("visitors.id"), nullable=True)
+    status = Column(String(20), default="pending")  # pending | processing | completed | failed | rejected
     meeting_text = Column(Text, nullable=False)
     is_valid = Column(Boolean, default=True)
     reject_reason = Column(Text, nullable=True)
@@ -31,6 +46,7 @@ class Task(Base):
     created_at = Column(DateTime, default=now_kst)
     updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 
+    visitor = relationship("Visitor", back_populates="tasks")
     comics = relationship("Comic", back_populates="task", cascade="all, delete-orphan")
 
 
