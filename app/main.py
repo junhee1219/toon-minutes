@@ -1,7 +1,14 @@
 import json
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Depends, HTTPException
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
