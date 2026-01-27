@@ -23,7 +23,8 @@ class Visitor(Base):
     __tablename__ = "visitors"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    fingerprint = Column(String(64), unique=True, nullable=False, index=True)
+    fingerprint = Column(String(64), nullable=True)
+    nickname = Column(String(30), nullable=True)
     first_seen = Column(DateTime, default=now_kst)
     last_seen = Column(DateTime, default=now_kst, onupdate=now_kst)
     visit_count = Column(Integer, default=0)

@@ -50,6 +50,17 @@ body {
     font-size: 15px;
 }
 
+.greeting {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 6px 14px;
+    background: var(--text);
+    color: #fff;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
 /* 카드 */
 .card {
     background: var(--card-bg);

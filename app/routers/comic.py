@@ -8,6 +8,7 @@ from app.models import Task, Comic, Visitor
 from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario, GenerateResponse
 from app.services.comic_service import comic_service
 from app.services.llm_service import llm_service
+from app.utils import generate_nickname
 
 router = APIRouter(tags=["comic"])
 
@@ -19,23 +20,14 @@ async def generate_comic(
     db: AsyncSession = Depends(get_db),
 ):
     """만화 생성 요청 (입력 검증 포함)"""
-    # 1. Visitor upsert
+    # 1. Visitor 조회
     visitor_id = None
-    if request.fingerprint:
-        result = await db.execute(
-            select(Visitor).where(Visitor.fingerprint == request.fingerprint)
-        )
-        visitor = result.scalar_one_or_none()
-
+    nickname = None
+    if request.visitor_id:
+        visitor = await db.get(Visitor, request.visitor_id)
         if visitor:
-            visitor.visit_count += 1
-        else:
-            visitor = Visitor(fingerprint=request.fingerprint, visit_count=1)
-            db.add(visitor)
-
-        await db.commit()
-        await db.refresh(visitor)
-        visitor_id = visitor.id
+            visitor_id = visitor.id
+            nickname = visitor.nickname
 
     # 2. 입력 검증 + 대기 메시지 생성
     validation = await llm_service.validate_input(request.meeting_text)
@@ -75,7 +67,34 @@ async def generate_comic(
             updated_at=task.updated_at,
         ),
         messages=validation.messages,
+        nickname=nickname,
     )
+
+
+@router.post("/visitor")
+async def get_or_create_visitor(
+    id: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """방문자 조회/생성, 닉네임 반환"""
+    visitor = None
+
+    if id:
+        visitor = await db.get(Visitor, id)
+        if visitor:
+            visitor.visit_count += 1
+            await db.commit()
+
+    if not visitor:
+        visitor = Visitor(
+            nickname=generate_nickname(),
+            visit_count=1,
+        )
+        db.add(visitor)
+        await db.commit()
+        await db.refresh(visitor)
+
+    return {"id": visitor.id, "nickname": visitor.nickname}
 
 
 @router.get("/status/{task_id}", response_model=TaskStatus)

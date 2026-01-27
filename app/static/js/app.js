@@ -13,14 +13,28 @@ document.addEventListener('DOMContentLoaded', () => {
     let messageRotationInterval = null;
     let progressInterval = null;
     let currentProgress = 0;
-    let visitorId = null;
+    let visitorId = localStorage.getItem('visitor_id');
+    let nickname = null;
+    const greeting = document.getElementById('greeting');
 
-    // FingerprintJS 초기화
-    if (window.FingerprintJS) {
-        FingerprintJS.load().then(fp => fp.get()).then(result => {
-            visitorId = result.visitorId;
-        });
-    }
+    // 방문자 초기화
+    (async () => {
+        try {
+            const url = visitorId ? `/visitor?id=${visitorId}` : '/visitor';
+            const res = await fetch(url, { method: 'POST' });
+            const data = await res.json();
+
+            if (data.id) {
+                visitorId = data.id;
+                localStorage.setItem('visitor_id', data.id);
+            }
+            if (data.nickname) {
+                nickname = data.nickname;
+                greeting.textContent = `${nickname}님, 어서오세요`;
+                greeting.classList.remove('hidden');
+            }
+        } catch (e) { /* 실패해도 무시 */ }
+    })();
 
     const fallbackMessages = [
         "만화 컷을 구성하고 있어요",
@@ -150,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ meeting_text: meetingText, fingerprint: visitorId }),
+                body: JSON.stringify({ meeting_text: meetingText, visitor_id: visitorId }),
             });
 
             if (!response.ok) {
@@ -161,12 +175,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             const taskId = data.task.id;
             const messages = data.messages || [];
+            if (data.nickname) nickname = data.nickname;
 
             // 검증 통과 → 로딩 UI 시작
             cleanup();
             currentProgress = 0;
             updateProgress(0, '준비 중...');
             showLoading();
+
+            const badge = document.getElementById('status-badge');
+            badge.textContent = nickname ? `${nickname}님의 만화 생성 중` : '생성 중';
+
             startMessageRotation(messages);
             startTipRotation();
             simulateProgress();
