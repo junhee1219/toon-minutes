@@ -3,12 +3,29 @@ import json
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from google.genai.errors import ServerError
 
 from app.models import Task, Comic
 from app.services.llm_service import llm_service
 from app.services.image_service import image_service
 
 logger = logging.getLogger(__name__)
+
+
+def get_friendly_error_message(e: Exception) -> str:
+    """에러를 사용자 친화적 메시지로 변환"""
+    error_str = str(e).lower()
+
+    if isinstance(e, ServerError) or "503" in error_str or "overloaded" in error_str:
+        return "AI 서버가 지금 바빠요. 잠시 후 다시 시도해 주세요!"
+    elif "rate limit" in error_str or "429" in error_str:
+        return "요청이 너무 많아요. 1분 후에 다시 시도해 주세요."
+    elif "timeout" in error_str:
+        return "응답 시간이 초과됐어요. 내용을 조금 줄여서 다시 시도해 주세요."
+    elif "safety" in error_str:
+        return "입력 내용에 문제가 있어요. 다른 내용으로 시도해 주세요."
+    else:
+        return f"문제가 발생했어요. 잠시 후 다시 시도해 주세요. ({type(e).__name__})"
 
 
 class ComicService:
@@ -58,10 +75,10 @@ class ComicService:
             await db.commit()
 
         except Exception as e:
+            logger.error(f"만화 생성 실패: {e}")
             task.status = "failed"
-            task.error_message = str(e)
+            task.error_message = get_friendly_error_message(e)
             await db.commit()
-            raise
 
     async def _generate_single(self, panels) -> list[str]:
         """단일 에피소드 이미지 생성 (기존 방식)"""
