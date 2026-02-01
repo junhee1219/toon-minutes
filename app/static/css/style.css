@@ -24,6 +24,8 @@ body {
     color: var(--text);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+    -webkit-touch-callout: none;
 }
 
 .container {
@@ -90,6 +92,8 @@ form {
     font-family: inherit;
     line-height: 1.6;
     background: #fff;
+    -webkit-user-select: text;
+    user-select: text;
 }
 
 .meeting-input:focus {
@@ -120,10 +124,17 @@ button {
     font-weight: 500;
     cursor: pointer;
     transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
 
 button:hover {
     background: var(--primary-hover);
+}
+
+button:active {
+    transform: scale(0.98);
+    opacity: 0.9;
 }
 
 button:disabled {
@@ -307,10 +318,17 @@ button:disabled {
     border: 1px solid var(--border);
     cursor: pointer;
     transition: opacity 0.2s;
+    -webkit-touch-callout: default;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .panel img:hover {
     opacity: 0.9;
+}
+
+.panel img:active {
+    opacity: 0.8;
 }
 
 .panel p {
@@ -336,10 +354,15 @@ button:disabled {
     border-radius: 6px;
     font-size: 14px;
     font-weight: 500;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .download-btn:hover {
     background: var(--border);
+}
+
+.download-btn:active {
+    transform: scale(0.98);
 }
 
 .back-link {
@@ -351,10 +374,16 @@ button:disabled {
     text-decoration: none;
     font-size: 14px;
     transition: color 0.2s;
+    padding: 8px 4px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .back-link:hover {
     color: var(--text);
+}
+
+.back-link:active {
+    opacity: 0.7;
 }
 
 /* 에러 */
@@ -389,10 +418,16 @@ button:disabled {
     text-decoration: none;
     font-size: 13px;
     transition: color 0.2s;
+    padding: 8px 4px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .footer-links a:hover {
     color: var(--text);
+}
+
+.footer-links a:active {
+    opacity: 0.7;
 }
 
 .footer-contact {
@@ -403,10 +438,15 @@ button:disabled {
 .footer-contact a {
     color: var(--text-light);
     text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .footer-contact a:hover {
     text-decoration: underline;
+}
+
+.footer-contact a:active {
+    opacity: 0.7;
 }
 
 /* 이미지 뷰어 모달 */
@@ -421,6 +461,8 @@ button:disabled {
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s, visibility 0.2s;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .viewer-overlay.active {
@@ -432,6 +474,8 @@ button:disabled {
     display: flex;
     flex-direction: column;
     align-items: center;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
 }
 
 .viewer-img {
@@ -441,6 +485,8 @@ button:disabled {
     border-radius: 8px;
     user-select: none;
     -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    pointer-events: none;
 }
 
 .viewer-caption {
@@ -462,10 +508,15 @@ button:disabled {
     padding: 8px;
     border-radius: 50%;
     transition: color 0.2s;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .viewer-close:hover {
     color: #fff;
+}
+
+.viewer-close:active {
+    transform: scale(0.9);
 }
 
 .viewer-nav {
@@ -483,11 +534,16 @@ button:disabled {
     align-items: center;
     justify-content: center;
     transition: background 0.2s, color 0.2s;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .viewer-nav:hover {
     background: rgba(255, 255, 255, 0.15);
     color: #fff;
+}
+
+.viewer-nav:active {
+    transform: translateY(-50%) scale(0.95);
 }
 
 .viewer-nav svg {
@@ -508,22 +564,36 @@ button:disabled {
 }
 
 /* 반응형 */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     .container,
     .result-container {
         padding: 40px 16px 32px;
     }
 
     .header h1 {
-        font-size: 24px;
+        font-size: 26px;
     }
 
     .card, .loading-card, .comic {
         padding: 20px;
     }
 
+    .meeting-input {
+        min-height: 180px;
+        font-size: 16px; /* 모바일에서 확대 방지 */
+        padding: 14px;
+    }
+
+    button {
+        padding: 16px 20px;
+        font-size: 16px;
+        border-radius: 10px;
+        min-height: 48px; /* 터치 타겟 권장 */
+    }
+
     .panels {
         grid-template-columns: 1fr;
+        gap: 16px;
     }
 
     .footer-links {
@@ -531,10 +601,303 @@ button:disabled {
         gap: 12px;
     }
 
+    .footer-links a {
+        font-size: 14px;
+    }
+
+    .viewer-nav {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .viewer-nav svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .viewer-prev { left: 12px; }
+    .viewer-next { right: 12px; }
+
+    .viewer-img {
+        max-width: 95vw;
+        max-height: 75vh;
+    }
+
+    .loading-card {
+        padding: 24px 16px;
+    }
+
+    .result-header h1 {
+        font-size: 22px;
+    }
+
+    .progress-text {
+        font-size: 12px;
+    }
+
+    .rotating-message {
+        font-size: 14px;
+    }
+
+    .tip-text {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container,
+    .result-container {
+        padding: 32px 12px 28px;
+    }
+
+    .header h1 {
+        font-size: 22px;
+        margin-bottom: 6px;
+    }
+
+    .header p {
+        font-size: 13px;
+    }
+
+    .greeting {
+        font-size: 12px;
+        padding: 5px 12px;
+        margin-top: 10px;
+    }
+
+    .card, .loading-card, .comic {
+        padding: 16px;
+        border-radius: 10px;
+    }
+
+    .meeting-input {
+        min-height: 160px;
+        font-size: 16px;
+        padding: 12px;
+        max-height: 400px;
+        border-radius: 8px;
+    }
+
+    button {
+        padding: 14px 16px;
+        font-size: 15px;
+        min-height: 44px;
+        border-radius: 8px;
+    }
+
+    form {
+        gap: 14px;
+    }
+
+    .panels {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .panel img {
+        border-radius: 6px;
+    }
+
+    .download-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 14px;
+        font-size: 13px;
+    }
+
+    .footer {
+        margin-top: 40px;
+        padding-top: 20px;
+    }
+
+    .footer-links {
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .footer-links a {
+        font-size: 12px;
+    }
+
+    .footer-contact {
+        font-size: 11px;
+    }
+
+    .result-header {
+        margin-bottom: 24px;
+    }
+
+    .result-header h1 {
+        font-size: 20px;
+        margin-bottom: 4px;
+    }
+
+    .result-header p {
+        font-size: 12px;
+    }
+
+    .comic h2 {
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    .panel p {
+        font-size: 12px;
+        margin-top: 6px;
+    }
+
+    .back-link {
+        font-size: 13px;
+        margin-top: 24px;
+        gap: 4px;
+    }
+
+    .viewer-overlay {
+        z-index: 1001;
+    }
+
+    .viewer-close {
+        top: 12px;
+        right: 12px;
+        padding: 6px;
+        width: 32px;
+        height: 32px;
+    }
+
+    .viewer-close svg {
+        width: 20px;
+        height: 20px;
+    }
+
     .viewer-nav {
         width: 36px;
         height: 36px;
     }
+    
+    .viewer-nav svg {
+        width: 20px;
+        height: 20px;
+    }
+
     .viewer-prev { left: 8px; }
     .viewer-next { right: 8px; }
+
+    .viewer-img {
+        max-width: 98vw;
+        max-height: 70vh;
+    }
+
+    .viewer-caption {
+        margin-top: 12px;
+        font-size: 12px;
+        max-width: 90vw;
+        padding: 0 12px;
+    }
+
+    .viewer-counter {
+        font-size: 11px;
+        bottom: 16px;
+    }
+
+    .loading-card {
+        padding: 20px 12px;
+    }
+
+    .loading-animation {
+        margin-bottom: 20px;
+        gap: 5px;
+    }
+
+    .loading-dot {
+        width: 6px;
+        height: 6px;
+    }
+
+    .progress-container {
+        margin-bottom: 20px;
+    }
+
+    .progress-bar {
+        height: 3px;
+    }
+
+    .progress-text {
+        font-size: 11px;
+        margin-top: 6px;
+    }
+
+    .message-area {
+        min-height: 50px;
+    }
+
+    .status-badge {
+        font-size: 11px;
+        padding: 3px 8px;
+        margin-bottom: 10px;
+    }
+
+    .rotating-message {
+        font-size: 13px;
+    }
+
+    .tip-area {
+        margin-top: 16px;
+        padding-top: 16px;
+    }
+
+    .tip-text {
+        font-size: 11px;
+        gap: 4px;
+    }
+
+    .error-message {
+        font-size: 13px;
+        padding: 12px;
+    }
+
+    .comic-container {
+        gap: 16px;
+    }
+}
+
+/* 매우 작은 화면 (320px 이하) */
+@media (max-width: 380px) {
+    .container,
+    .result-container {
+        padding: 28px 10px 24px;
+    }
+
+    .header h1 {
+        font-size: 20px;
+    }
+
+    .header p {
+        font-size: 12px;
+    }
+
+    .card, .loading-card, .comic {
+        padding: 14px;
+    }
+
+    button {
+        padding: 13px 14px;
+        font-size: 14px;
+        min-height: 40px;
+    }
+
+    .meeting-input {
+        min-height: 140px;
+        font-size: 15px;
+        padding: 10px;
+    }
+
+    .viewer-nav {
+        width: 32px;
+        height: 32px;
+    }
+
+    .viewer-close {
+        width: 28px;
+        height: 28px;
+    }
 }
