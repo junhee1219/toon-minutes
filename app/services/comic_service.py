@@ -14,8 +14,15 @@ logger = logging.getLogger(__name__)
 class ComicService:
     """만화 생성 오케스트레이션 서비스"""
 
-    async def create_comic(self, db: AsyncSession, task_id: str, meeting_text: str) -> None:
+    async def create_comic(
+        self,
+        db: AsyncSession,
+        task_id: str,
+        meeting_text: str,
+        images: list[bytes] = None,
+    ) -> None:
         """전체 만화 생성 프로세스 실행"""
+        images = images or []
         task = await db.get(Task, task_id)
         if not task:
             return
@@ -25,8 +32,8 @@ class ComicService:
             task.status = "processing"
             await db.commit()
 
-            # 2. LLM으로 시나리오 생성
-            panels = await llm_service.analyze_meeting(meeting_text)
+            # 2. LLM으로 시나리오 생성 (이미지 포함)
+            panels = await llm_service.analyze_meeting(meeting_text, images)
             logger.info(f"시나리오 생성 완료: {len(panels)}개 에피소드")
 
             # 3. 에피소드 수에 따라 분기

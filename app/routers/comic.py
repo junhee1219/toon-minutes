@@ -1,5 +1,6 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form, File, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,6 +57,75 @@ async def generate_comic(
         db,
         task.id,
         request.meeting_text,
+    )
+
+    return GenerateResponse(
+        task=TaskStatus(
+            id=task.id,
+            status=task.status,
+            error_message=task.error_message,
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+        ),
+        messages=validation.messages,
+        nickname=nickname,
+    )
+
+
+@router.post("/generate-with-images", response_model=GenerateResponse)
+async def generate_comic_with_images(
+    background_tasks: BackgroundTasks,
+    meeting_text: str = Form(...),
+    visitor_id: Optional[str] = Form(None),
+    images: list[UploadFile] = File(default=[]),
+    db: AsyncSession = Depends(get_db),
+):
+    """만화 생성 요청 (이미지 포함)"""
+    # 1. Visitor 조회
+    db_visitor_id = None
+    nickname = None
+    if visitor_id:
+        visitor = await db.get(Visitor, visitor_id)
+        if visitor:
+            db_visitor_id = visitor.id
+            nickname = visitor.nickname
+
+    # 2. 이미지 파일 읽기
+    image_bytes_list = []
+    for img in images:
+        if img.filename:
+            content = await img.read()
+            if content:
+                image_bytes_list.append(content)
+
+    # 3. 입력 검증 + 대기 메시지 생성
+    validation = await llm_service.validate_input(meeting_text)
+
+    # 4. Task 생성
+    task = Task(
+        visitor_id=db_visitor_id,
+        meeting_text=meeting_text,
+        is_valid=validation.is_valid,
+        reject_reason=validation.reject_reason,
+        status="rejected" if not validation.is_valid else "pending",
+    )
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+
+    if not validation.is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail=validation.reject_reason or "만화로 변환할 수 없는 입력입니다.",
+        )
+
+    # 5. 백그라운드에서 만화 생성 (이미지 포함)
+    background_tasks.add_task(
+        comic_service.create_comic,
+        db,
+        task.id,
+        meeting_text,
+        image_bytes_list,
     )
 
     return GenerateResponse(

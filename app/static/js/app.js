@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressStatus = document.getElementById('progress-status');
     const progressPercent = document.getElementById('progress-percent');
     const tipText = document.getElementById('tip-text');
+    const meetingInput = document.getElementById('meeting-input');
 
     let messageRotationInterval = null;
     let progressInterval = null;
@@ -50,7 +51,47 @@ document.addEventListener('DOMContentLoaded', () => {
         "회의록이 길면 여러 에피소드로 나뉠 수 있어요",
     ];
 
-    // 메시지 로테이션 (서버에서 받은 메시지 사용)
+    // contenteditable에서 텍스트와 이미지 추출
+    async function extractContent() {
+        const html = meetingInput.innerHTML;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // 텍스트 추출 (줄바꿈 유지)
+        const text = meetingInput.innerText.trim();
+
+        // 이미지 추출
+        const images = [];
+        const imgs = doc.querySelectorAll('img');
+
+        for (const img of imgs) {
+            const src = img.src;
+            if (!src) continue;
+
+            try {
+                let blob;
+                if (src.startsWith('data:')) {
+                    // base64 → blob
+                    const response = await fetch(src);
+                    blob = await response.blob();
+                } else if (src.startsWith('blob:')) {
+                    // blob URL → blob
+                    const response = await fetch(src);
+                    blob = await response.blob();
+                } else {
+                    // 외부 URL은 스킵 (CORS)
+                    continue;
+                }
+                images.push(blob);
+            } catch (e) {
+                console.error('이미지 추출 실패:', e);
+            }
+        }
+
+        return { text, images };
+    }
+
+    // 메시지 로테이션
     function startMessageRotation(messages) {
         const allMessages = messages.length > 0 ? messages : fallbackMessages;
         let usedIndices = new Set();
@@ -69,10 +110,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         rotatingMessage.textContent = getRandomMessage();
 
-        const interval = Math.random() * 1000 + 2000; // 2~3초
+        const interval = Math.random() * 1000 + 2000;
         messageRotationInterval = setInterval(() => {
             rotatingMessage.classList.add('fade-out');
-
             setTimeout(() => {
                 rotatingMessage.textContent = getRandomMessage();
                 rotatingMessage.classList.remove('fade-out');
@@ -152,7 +192,6 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const meetingText = document.getElementById('meeting-text').value;
         const submitBtn = form.querySelector('button');
         const originalBtnText = submitBtn.textContent;
 
@@ -161,11 +200,37 @@ document.addEventListener('DOMContentLoaded', () => {
         errorSection.classList.add('hidden');
 
         try {
-            const response = await fetch('/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ meeting_text: meetingText, visitor_id: visitorId }),
-            });
+            // contenteditable에서 텍스트와 이미지 추출
+            const { text, images } = await extractContent();
+
+            if (!text) {
+                throw new Error('내용을 입력해주세요.');
+            }
+
+            let response;
+
+            if (images.length > 0) {
+                // 이미지가 있으면 FormData로 전송
+                const formData = new FormData();
+                formData.append('meeting_text', text);
+                if (visitorId) formData.append('visitor_id', visitorId);
+
+                images.forEach((blob, i) => {
+                    formData.append('images', blob, `image_${i}.png`);
+                });
+
+                response = await fetch('/generate-with-images', {
+                    method: 'POST',
+                    body: formData,
+                });
+            } else {
+                // 텍스트만 있으면 JSON으로 전송
+                response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ meeting_text: text, visitor_id: visitorId }),
+                });
+            }
 
             if (!response.ok) {
                 const errorData = await response.json();

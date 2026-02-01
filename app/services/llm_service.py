@@ -184,17 +184,26 @@ class LLMService:
 
         return response.parsed
 
-    async def analyze_meeting(self, meeting_text: str) -> list[PanelScenario]:
-        """회의록을 분석하여 4컷 만화 시나리오 생성"""
+    async def analyze_meeting(self, meeting_text: str, images: list[bytes] = None) -> list[PanelScenario]:
+        """회의록을 분석하여 4컷 만화 시나리오 생성 (이미지 포함 가능)"""
+        images = images or []
+
         prompt = f"""
         다음 텍스트를을 4컷 만화 시나리오로 변환해주세요.
+{f"(첨부된 {len(images)}개의 이미지도 내용 파악에 참고하세요)" if images else ""}
 ---
 {meeting_text}
 ---""".strip()
 
+        # 멀티모달 입력: 이미지들 + 텍스트
+        contents = []
+        for img_bytes in images:
+            contents.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
+        contents.append(prompt)
+
         response = await self.client.aio.models.generate_content(
             model=self.model,
-            contents=[prompt],
+            contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
                 temperature=0.9,
