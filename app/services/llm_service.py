@@ -2,6 +2,8 @@ import logging
 
 from google import genai
 from google.genai import types
+from google.genai.errors import ServerError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.config import settings
 from app.schemas import PanelScenario, ValidationResult
@@ -150,6 +152,20 @@ class LLMService:
         self.client = genai.Client(api_key=settings.gemini_api_key)
         self.model = "gemini-3-flash-preview"
 
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=2, min=4, max=60),
+        retry=retry_if_exception_type(ServerError),
+        reraise=True,
+    )
+    async def _generate_with_retry(self, contents, config):
+        """재시도 로직이 포함된 API 호출"""
+        return await self.client.aio.models.generate_content(
+            model=self.model,
+            contents=contents,
+            config=config,
+        )
+
     async def validate_input(self, text: str) -> ValidationResult:
         """입력 텍스트가 만화로 변환할 만한 콘텐츠인지 검증하고, 대기 메시지 생성"""
         # 길이 제한 (3만자)
@@ -166,8 +182,7 @@ class LLMService:
 {text}
 ---""".strip()
 
-        response = await self.client.aio.models.generate_content(
-            model=self.model,
+        response = await self._generate_with_retry(
             contents=[prompt],
             config=types.GenerateContentConfig(
                 system_instruction=VALIDATION_PROMPT,
@@ -201,8 +216,7 @@ class LLMService:
             contents.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
         contents.append(prompt)
 
-        response = await self.client.aio.models.generate_content(
-            model=self.model,
+        response = await self._generate_with_retry(
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
