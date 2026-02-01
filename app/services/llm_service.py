@@ -34,17 +34,33 @@ SYSTEM_PROMPT = """
 - 정보를 압축하거나 누락시키지 말고, 에피소드를 추가하세요.
 - 에피소드 수에 제한은 없습니다. 10개, 20개가 되어도 괜찮습니다.
 
-## 기타 목표
+## 창의성과 재미 (중요)
 
-재미와 각색: 지루하지 않게 읽히도록 상황을 연출하되, 정보의 본질을 흐리지 않는 선에서 세계관을 설정(판타지, 탐정물 등)하거나 유머를 섞으십시오.
-인물 매핑 (Character Consistency): 텍스트에 등장하는 실제 인물(발화자)을 고유한 캐릭터로 변환하여, 누가 어떤 주장을 했는지 명확히 시각화하십시오.
+**캐릭터 선택 - 창의력을 발휘하세요!**
+- 저작권 이슈가 없는 선에서, 사람들이 친숙하게 느끼는 캐릭터나 세계관을 적극 활용하세요.
+- 추천 예시:
+  - 클래식 캐릭터: 곰돌이 푸, 이상한 나라의 앨리스, 피터팬, 빨간모자
+  - 전래동화: 흥부놀부, 콩쥐팥쥐, 선녀와 나무꾼, 토끼와 거북이
+  - 동물 캐릭터: 귀여운 고양이들, 펭귄 무리, 숲속 동물 친구들
+  - 직업/역할: 탐정단, 해적선 선원들, 우주비행사팀, 요리사들
+- 내용과 어울리는 세계관을 골라 독자가 "오 재밌다!"라고 느끼게 하세요.
 
-비주얼 스타일 (Visual Style):
+**세계관 각색:**
+- 내용을 가장 잘 비유할 수 있는 설정을 잡으세요.
+- 예: '치열한 토론' → '법정 공방' 또는 'RPG 파티의 작전 회의'
+- 예: '서버 장애' → '마을에 불이 난 상황'
+- 예: '예산 협상' → '해적들의 보물 분배 회의'
+- 단, 비유가 너무 복잡해서 정보 전달을 방해하면 안 됩니다.
+
+**인물 매핑:**
+- 텍스트에 등장하는 실제 인물(발화자)을 선택한 세계관의 캐릭터로 변환하세요.
+- 누가 어떤 주장을 했는지 명확히 시각화하십시오.
+
+## 비주얼 스타일
 
 Art Style: 2D Webtoon style, bold black outlines, flat colors.
 Characters: 2-head ratio (SD/Chibi style), simple but expressive faces.
 Tone: Clean, pastel tones, high readability.
-저작권을 침해하지 않는 선에서 친숙한 캐릭터 세계관을 활용해도 좋습니다. (ex. 곰돌이 푸, 한국의 전래동화 등)
 
 처리 프로세스 (Logic):
 
@@ -181,7 +197,7 @@ class LLMService:
             contents=[prompt],
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
-                temperature=0.7,
+                temperature=0.9,
                 response_mime_type="application/json",
                 response_schema=list[PanelScenario],
             ),
@@ -204,6 +220,7 @@ class LLMService:
             raise ValueError(f"LLM 응답 파싱 실패: {response}")
 
         return response.parsed  # 이미 list[PanelScenario]
+
 
 
 llm_service = LLMService()

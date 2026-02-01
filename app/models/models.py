@@ -44,6 +44,7 @@ class Task(Base):
     is_valid = Column(Boolean, default=True)
     reject_reason = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
+    character_sheet_url = Column(Text, nullable=True)  # 캐릭터 시트 이미지 URL (내부용)
     created_at = Column(DateTime, default=now_kst)
     updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 
