@@ -21,9 +21,11 @@
                 <div class="panels">
                     {% for i in range(comic.image_paths|length) %}
                     <div class="panel">
-                        <a href="{{ comic.image_paths[i] }}" target="_blank" download>
-                            <img src="{{ comic.image_paths[i] }}" alt="Panel {{ i + 1 }}">
-                        </a>
+                        <img
+                            src="{{ comic.image_paths[i] }}"
+                            alt="Panel {{ i + 1 }}"
+                            onclick="openViewer({{ loop.index0 }}, {{ i }})"
+                        >
                         {% if comic.panels[i] and comic.panels[i].dialogue %}
                         <p>{{ comic.panels[i].dialogue }}</p>
                         {% endif %}
@@ -66,9 +68,114 @@
         </footer>
     </div>
 
+    <!-- 이미지 뷰어 모달 -->
+    <div class="viewer-overlay" id="viewer" onclick="onOverlayClick(event)">
+        <button class="viewer-close" onclick="closeViewer()" aria-label="닫기">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+
+        <button class="viewer-nav viewer-prev" onclick="navigate(-1)" aria-label="이전">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15,18 9,12 15,6"/>
+            </svg>
+        </button>
+
+        <div class="viewer-content">
+            <img class="viewer-img" id="viewer-img" src="" alt="">
+            <div class="viewer-caption" id="viewer-caption"></div>
+        </div>
+
+        <button class="viewer-nav viewer-next" onclick="navigate(1)" aria-label="다음">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9,6 15,12 9,18"/>
+            </svg>
+        </button>
+
+        <div class="viewer-counter" id="viewer-counter"></div>
+    </div>
+
     <script>
         const comicsData = {{ comics | tojson | safe }};
 
+        // 모든 이미지를 flat 배열로 구성
+        const allSlides = [];
+        comicsData.forEach((comic, ci) => {
+            comic.image_paths.forEach((path, pi) => {
+                const panel = comic.panels && comic.panels[pi];
+                allSlides.push({
+                    src: path,
+                    caption: panel && panel.dialogue ? panel.dialogue : '',
+                    label: `Part ${comic.part_number} - ${pi + 1}컷`,
+                    comicIndex: ci,
+                    panelIndex: pi,
+                });
+            });
+        });
+
+        let currentSlide = 0;
+        let viewerOpen = false;
+
+        const viewer = document.getElementById('viewer');
+        const viewerImg = document.getElementById('viewer-img');
+        const viewerCaption = document.getElementById('viewer-caption');
+        const viewerCounter = document.getElementById('viewer-counter');
+
+        function openViewer(comicIdx, panelIdx) {
+            currentSlide = allSlides.findIndex(
+                s => s.comicIndex === comicIdx && s.panelIndex === panelIdx
+            );
+            if (currentSlide === -1) currentSlide = 0;
+            viewerOpen = true;
+            viewer.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            updateViewer();
+        }
+
+        function closeViewer() {
+            viewerOpen = false;
+            viewer.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function navigate(dir) {
+            currentSlide = (currentSlide + dir + allSlides.length) % allSlides.length;
+            updateViewer();
+        }
+
+        function updateViewer() {
+            const slide = allSlides[currentSlide];
+            viewerImg.src = slide.src;
+            viewerCaption.textContent = slide.caption || slide.label;
+            viewerCounter.textContent = `${currentSlide + 1} / ${allSlides.length}`;
+        }
+
+        function onOverlayClick(e) {
+            if (e.target === viewer) closeViewer();
+        }
+
+        // 키보드
+        document.addEventListener('keydown', (e) => {
+            if (!viewerOpen) return;
+            if (e.key === 'ArrowLeft') navigate(-1);
+            else if (e.key === 'ArrowRight') navigate(1);
+            else if (e.key === 'Escape') closeViewer();
+        });
+
+        // 스와이프 (모바일)
+        let touchStartX = 0;
+        viewer.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        viewer.addEventListener('touchend', (e) => {
+            const diff = e.changedTouches[0].screenX - touchStartX;
+            if (Math.abs(diff) > 50) {
+                navigate(diff > 0 ? -1 : 1);
+            }
+        });
+
+        // 다운로드
         async function downloadImage(url, filename) {
             try {
                 const response = await fetch(url);
@@ -87,13 +194,12 @@
 
         async function downloadAll(comicIndex) {
             const comic = comicsData[comicIndex];
-            const imagePaths = comic.image_paths;
-
-            for (let i = 0; i < imagePaths.length; i++) {
-                const url = imagePaths[i];
-                const filename = `toon-minutes-part${comic.part_number}-panel${i + 1}.png`;
-                await downloadImage(url, filename);
-                await new Promise(resolve => setTimeout(resolve, 500));
+            for (let i = 0; i < comic.image_paths.length; i++) {
+                await downloadImage(
+                    comic.image_paths[i],
+                    `toon-minutes-part${comic.part_number}-panel${i + 1}.png`
+                );
+                await new Promise(r => setTimeout(r, 500));
             }
         }
     </script>
