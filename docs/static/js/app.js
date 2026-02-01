@@ -1,5 +1,5 @@
-// API 서버 URL (GitHub Pages 배포 시 ngrok URL로 변경)
-const API_BASE_URL = '';  // 로컬: '', 배포: 'https://xxxx.ngrok-free.app'
+// API 서버 URL
+const API_BASE_URL = 'https://morgan-bipectinate-unnicely.ngrok-free.dev';
 
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('generate-form');
