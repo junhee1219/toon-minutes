@@ -8,7 +8,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐙</text></svg>">
 </head>
 <body>
-    <div class="container">
+    <div class="result-container">
         <div class="result-header">
             <h1>생성된 만화</h1>
             <p>회의록이 4컷 만화로 변환되었습니다</p>
@@ -20,7 +20,7 @@
         </div>
 
         <div style="text-align: center;">
-            <a href="index.html" class="back-link">
+            <a href="/" class="back-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="19" y1="12" x2="5" y2="12"/>
                     <polyline points="12,19 5,12 12,5"/>
@@ -84,10 +84,11 @@
         const viewerCounter = document.getElementById('viewer-counter');
         const comicContainer = document.getElementById('comic-container');
 
-        // URL에서 task_id 추출
+        // URL에서 task_id 추출 (/view/{task_id} 형식)
         function getTaskId() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('task');
+            const path = window.location.pathname;
+            const match = path.match(/\/view\/([^\/]+)/);
+            return match ? match[1] : null;
         }
 
         // 데이터 로드 및 렌더링

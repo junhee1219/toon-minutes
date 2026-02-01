@@ -248,6 +248,12 @@ button:disabled {
 }
 
 /* 결과 페이지 */
+.result-container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 60px 20px 40px;
+}
+
 .result-header {
     text-align: center;
     margin-bottom: 32px;
@@ -503,7 +509,8 @@ button:disabled {
 
 /* 반응형 */
 @media (max-width: 480px) {
-    .container {
+    .container,
+    .result-container {
         padding: 40px 16px 32px;
     }
 

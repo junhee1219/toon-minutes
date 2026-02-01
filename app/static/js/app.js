@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateProgress(100, '완료!');
                     cleanup();
                     setTimeout(() => {
-                        window.location.href = `result.html?task=${taskId}`;
+                        window.location.href = `/view/${taskId}`;
                     }, 500);
                     return;
                 }

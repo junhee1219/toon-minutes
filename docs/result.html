@@ -8,7 +8,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐙</text></svg>">
 </head>
 <body>
-    <div class="container">
+    <div class="result-container">
         <div class="result-header">
             <h1>생성된 만화</h1>
             <p>회의록이 4컷 만화로 변환되었습니다</p>
@@ -73,6 +73,17 @@
         // API 서버 URL
         const API_BASE_URL = 'https://morgan-bipectinate-unnicely.ngrok-free.dev';
 
+        // ngrok 무료 버전용 헤더 (interstitial 페이지 스킵)
+        const NGROK_HEADERS = {
+            'ngrok-skip-browser-warning': 'true'
+        };
+
+        // fetch 래퍼 (ngrok 헤더 자동 추가)
+        async function apiFetch(url, options = {}) {
+            const headers = { ...NGROK_HEADERS, ...(options.headers || {}) };
+            return fetch(url, { ...options, headers });
+        }
+
         let comicsData = [];
         let allSlides = [];
         let currentSlide = 0;
@@ -99,7 +110,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE_URL}/result/${taskId}`);
+                const response = await apiFetch(`${API_BASE_URL}/result/${taskId}`);
                 if (!response.ok) throw new Error('결과를 불러올 수 없습니다.');
 
                 const data = await response.json();
