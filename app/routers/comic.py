@@ -1,6 +1,6 @@
 import json
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form, File, UploadFile, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -141,23 +141,36 @@ async def generate_comic_with_images(
     )
 
 
+def get_client_ip(request: Request) -> str:
+    """요청에서 클라이언트 IP 추출 (ngrok X-Forwarded-For 지원)"""
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("/visitor")
 async def get_or_create_visitor(
+    request: Request,
     id: str = "",
     db: AsyncSession = Depends(get_db),
 ):
     """방문자 조회/생성, 닉네임 반환"""
+    client_ip = get_client_ip(request)
     visitor = None
 
     if id:
         visitor = await db.get(Visitor, id)
         if visitor:
             visitor.visit_count += 1
+            visitor.last_ip = client_ip
             await db.commit()
 
     if not visitor:
         visitor = Visitor(
             nickname=generate_nickname(),
+            ip_address=client_ip,
+            last_ip=client_ip,
             visit_count=1,
         )
         db.add(visitor)

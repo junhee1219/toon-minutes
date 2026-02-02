@@ -25,6 +25,8 @@ class Visitor(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     fingerprint = Column(String(64), nullable=True)
     nickname = Column(String(30), nullable=True)
+    ip_address = Column(String(45), nullable=True)  # 최초 접속 IP (IPv6 대응)
+    last_ip = Column(String(45), nullable=True)     # 마지막 접속 IP
     first_seen = Column(DateTime, default=now_kst)
     last_seen = Column(DateTime, default=now_kst, onupdate=now_kst)
     visit_count = Column(Integer, default=0)
