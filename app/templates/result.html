@@ -127,7 +127,6 @@
         function renderComics() {
             comicContainer.innerHTML = comicsData.map((comic, ci) => `
                 <div class="comic">
-                    <h2>Part ${comic.part_number}</h2>
                     <div class="panels">
                         ${comic.image_paths.map((path, pi) => `
                             <div class="panel">
