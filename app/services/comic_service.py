@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import time
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from google.genai.errors import ServerError
@@ -44,22 +45,32 @@ class ComicService:
         if not task:
             return
 
+        total_start = time.time()
+        short_id = task_id[:8]
+
         try:
             # 1. 상태 업데이트
+            logger.info(f"[Task {short_id}] pending → processing")
             task.status = "processing"
             await db.commit()
 
             # 2. LLM으로 시나리오 생성 (이미지 포함)
+            scenario_start = time.time()
             panels = await llm_service.analyze_meeting(meeting_text, images)
-            logger.info(f"시나리오 생성 완료: {len(panels)}개 에피소드")
+            scenario_elapsed = time.time() - scenario_start
+            task.scenario_duration = round(scenario_elapsed, 1)
+            logger.info(f"[Task {short_id}] 시나리오 생성 완료 ({scenario_elapsed:.1f}s) - {len(panels)}개 에피소드")
 
             # 3. 에피소드 수에 따라 분기
             if len(panels) >= 2:
                 # 캐릭터 시트 방식: 레퍼런스 이미지 생성 후 병렬 처리
-                image_paths = await self._generate_with_character_sheet(task, panels)
+                image_paths, sheet_elapsed, episode_elapsed = await self._generate_with_character_sheet(task, panels, short_id)
+                task.character_sheet_duration = round(sheet_elapsed, 1)
+                task.episode_image_duration = round(episode_elapsed, 1)
             else:
                 # 단일 에피소드: 기존 방식
-                image_paths = await self._generate_single(panels)
+                image_paths, episode_elapsed = await self._generate_single(panels, short_id)
+                task.episode_image_duration = round(episode_elapsed, 1)
 
             # 4. Comic 저장
             comic = Comic(
@@ -71,17 +82,22 @@ class ComicService:
             db.add(comic)
 
             # 5. 완료 상태 업데이트
+            total_elapsed = time.time() - total_start
+            task.total_duration = round(total_elapsed, 1)
+            logger.info(f"[Task {short_id}] processing → completed (총 {total_elapsed:.1f}s)")
             task.status = "completed"
             await db.commit()
 
         except Exception as e:
-            logger.error(f"만화 생성 실패: {e}")
+            logger.error(f"[Task {short_id}] 만화 생성 실패: {e}")
             task.status = "failed"
             task.error_message = get_friendly_error_message(e)
             await db.commit()
 
-    async def _generate_single(self, panels) -> list[str]:
+    async def _generate_single(self, panels, short_id: str = "") -> tuple[list[str], float]:
         """단일 에피소드 이미지 생성 (기존 방식)"""
+        image_start = time.time()
+
         async def generate_with_index(index: int, prompt: str):
             path = await image_service.generate_image(prompt)
             return index, path
@@ -92,40 +108,40 @@ class ComicService:
         ]
         results = await asyncio.gather(*tasks)
 
-        return [path for _, path in sorted(results, key=lambda x: x[0])]
+        image_elapsed = time.time() - image_start
+        logger.info(f"[Task {short_id}] 에피소드 이미지 생성 완료 ({image_elapsed:.1f}s) - {len(panels)}장")
 
-    async def _generate_with_character_sheet(self, task: Task, panels) -> list[str]:
+        paths = [path for _, path in sorted(results, key=lambda x: x[0])]
+        return paths, image_elapsed
+
+    async def _generate_with_character_sheet(self, task: Task, panels, short_id: str = "") -> tuple[list[str], float, float]:
         """캐릭터 시트를 먼저 생성하고, 이를 레퍼런스로 에피소드 이미지 생성"""
-        # 1. 캐릭터 시트 프롬프트 직접 구성
-        logger.info("캐릭터 시트 프롬프트 구성 중...")
+        # 1. 캐릭터 시트 프롬프트 직접 구성 (인물 정보만 추출)
+        logger.info(f"[Task {short_id}] 캐릭터 시트 프롬프트 구성 중...")
         all_prompts = "\n\n".join([
             f"Episode {p.episode_number}:\n{p.image_prompt}"
             for p in panels
         ])
 
-        character_sheet_prompt = f"""Based on the following episode descriptions, create a CHARACTER SHEET image that includes:
-1. ALL main characters appearing across all episodes, standing together
-2. The overall art style, color tone, and atmosphere for this comic series
-3. A representative background that matches the world/setting
+        character_sheet_prompt = f"""Create a CHARACTER SHEET with all main characters standing together.
+DO NOT include any text, labels, or captions in the image.
 
-Episode descriptions:
-{all_prompts}
+{all_prompts}"""
 
-Style: 2D Webtoon, bold black outlines, flat colors, SD/Chibi style (2-head ratio), clean and expressive.
-This image will be used as a style reference for all subsequent episode illustrations."""
+        logger.info(f"[Task {short_id}] 캐릭터 시트 프롬프트: {character_sheet_prompt[:200]}...")
 
-        logger.info(f"캐릭터 시트 프롬프트: {character_sheet_prompt[:200]}...")
-
-        # 2. 캐릭터 시트 이미지 생성
-        logger.info("캐릭터 시트 이미지 생성 중...")
-        character_sheet_url = await image_service.generate_image(character_sheet_prompt)
-        logger.info(f"캐릭터 시트 생성 완료: {character_sheet_url}")
+        # 2. 캐릭터 시트 이미지 생성 (flash 모델 사용)
+        sheet_start = time.time()
+        character_sheet_url = await image_service.generate_image_fast(character_sheet_prompt)
+        sheet_elapsed = time.time() - sheet_start
+        logger.info(f"[Task {short_id}] 캐릭터 시트 생성 완료 ({sheet_elapsed:.1f}s)")
 
         # 3. Task에 캐릭터 시트 URL 저장
         task.character_sheet_url = character_sheet_url
 
         # 4. 캐릭터 시트를 레퍼런스로 모든 에피소드 이미지 병렬 생성
-        logger.info(f"레퍼런스 기반 {len(panels)}개 에피소드 이미지 생성 중...")
+        logger.info(f"[Task {short_id}] 레퍼런스 기반 {len(panels)}개 에피소드 이미지 생성 중...")
+        episode_start = time.time()
 
         async def generate_with_reference_index(index: int, prompt: str):
             path = await image_service.generate_image_with_reference(prompt, character_sheet_url)
@@ -137,7 +153,11 @@ This image will be used as a style reference for all subsequent episode illustra
         ]
         results = await asyncio.gather(*tasks)
 
-        return [path for _, path in sorted(results, key=lambda x: x[0])]
+        episode_elapsed = time.time() - episode_start
+        logger.info(f"[Task {short_id}] 에피소드 이미지 생성 완료 ({episode_elapsed:.1f}s) - {len(panels)}장")
+
+        paths = [path for _, path in sorted(results, key=lambda x: x[0])]
+        return paths, sheet_elapsed, episode_elapsed
 
 
 comic_service = ComicService()

@@ -58,3 +58,19 @@ class TaskResponse(BaseModel):
 
     task: TaskStatus
     comics: list[ComicResponse] = []
+
+
+class TaskHistoryItem(BaseModel):
+    """작업 내역 아이템"""
+
+    id: str
+    status: str
+    meeting_text_preview: str  # 앞 50자
+    thumbnail_url: str | None = None  # 첫 번째 이미지
+    created_at: datetime
+
+
+class HistoryResponse(BaseModel):
+    """작업 내역 응답"""
+
+    tasks: list[TaskHistoryItem] = []

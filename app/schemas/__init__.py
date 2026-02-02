@@ -6,6 +6,8 @@ from .schemas import (
     ComicResponse,
     PanelScenario,
     GenerateResponse,
+    TaskHistoryItem,
+    HistoryResponse,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "ComicResponse",
     "PanelScenario",
     "GenerateResponse",
+    "TaskHistoryItem",
+    "HistoryResponse",
 ]

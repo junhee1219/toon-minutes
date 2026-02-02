@@ -2,8 +2,6 @@ import logging
 
 from google import genai
 from google.genai import types
-from google.genai.errors import ServerError
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.config import settings
 from app.schemas import PanelScenario, ValidationResult
@@ -152,19 +150,23 @@ class LLMService:
         self.client = genai.Client(api_key=settings.gemini_api_key)
         self.model = "gemini-3-flash-preview"
 
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=2, min=4, max=60),
-        retry=retry_if_exception_type(ServerError),
-        reraise=True,
-    )
     async def _generate_with_retry(self, contents, config):
-        """재시도 로직이 포함된 API 호출"""
-        return await self.client.aio.models.generate_content(
-            model=self.model,
-            contents=contents,
-            config=config,
-        )
+        """재시도 로직이 포함된 API 호출 (즉시 3회 시도)"""
+        last_error = None
+
+        for attempt in range(3):
+            try:
+                return await self.client.aio.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config=config,
+                )
+            except Exception as e:
+                last_error = e
+                logger.warning(f"LLM API 호출 실패 (시도 {attempt + 1}/3): {type(e).__name__}: {e}")
+
+        logger.error(f"LLM API 호출 최종 실패: {type(last_error).__name__}: {last_error}")
+        raise last_error
 
     async def validate_input(self, text: str) -> ValidationResult:
         """입력 텍스트가 만화로 변환할 만한 콘텐츠인지 검증하고, 대기 메시지 생성"""

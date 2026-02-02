@@ -30,7 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let nickname = null;
     const greeting = document.getElementById('greeting');
 
-    // 방문자 초기화
+    const historySection = document.getElementById('history-section');
+    const historyList = document.getElementById('history-list');
+
+    // 방문자 초기화 및 작업 내역 로드
     (async () => {
         try {
             const url = visitorId ? `${API_BASE_URL}/visitor?id=${visitorId}` : `${API_BASE_URL}/visitor`;
@@ -46,8 +49,88 @@ document.addEventListener('DOMContentLoaded', () => {
                 greeting.textContent = `${nickname}님, 어서오세요`;
                 greeting.classList.remove('hidden');
             }
+
+            // 작업 내역 로드
+            if (visitorId) {
+                await loadHistory(visitorId);
+            }
         } catch (e) { /* 실패해도 무시 */ }
     })();
+
+    async function loadHistory(visitorId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/history/${visitorId}`);
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (!data.tasks || data.tasks.length === 0) return;
+
+            historyList.innerHTML = '';
+
+            for (const task of data.tasks) {
+                const item = document.createElement('a');
+                item.className = 'history-item';
+                item.href = task.status === 'completed' ? `/view/${task.id}` : '#';
+
+                const statusText = {
+                    completed: '완료',
+                    processing: '생성 중',
+                    pending: '대기 중'
+                };
+
+                const timeAgo = getTimeAgo(new Date(task.created_at));
+
+                item.innerHTML = `
+                    ${task.thumbnail_url
+                        ? `<img class="history-thumbnail" src="${task.thumbnail_url}" alt="">`
+                        : `<div class="history-thumbnail placeholder">${task.status === 'completed' ? '🎨' : '⏳'}</div>`
+                    }
+                    <div class="history-info">
+                        <div class="history-preview">${escapeHtml(task.meeting_text_preview)}</div>
+                        <div class="history-meta">
+                            <span class="history-status ${task.status}">${statusText[task.status]}</span>
+                            <span>${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+
+                if (task.status !== 'completed') {
+                    item.onclick = (e) => {
+                        e.preventDefault();
+                        if (task.status === 'processing') {
+                            alert('아직 생성 중입니다. 잠시만 기다려주세요.');
+                        }
+                    };
+                }
+
+                historyList.appendChild(item);
+            }
+
+            historySection.classList.remove('hidden');
+        } catch (e) {
+            console.error('작업 내역 로드 실패:', e);
+        }
+    }
+
+    function getTimeAgo(date) {
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+
+        if (minutes < 1) return '방금 전';
+        if (minutes < 60) return `${minutes}분 전`;
+        if (hours < 24) return `${hours}시간 전`;
+        if (days < 7) return `${days}일 전`;
+        return date.toLocaleDateString('ko-KR');
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
     const fallbackMessages = [
         "만화 컷을 구성하고 있어요",

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Task, Comic, Visitor
-from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario, GenerateResponse
+from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario, GenerateResponse, TaskHistoryItem, HistoryResponse
 from app.services.comic_service import comic_service
 from app.services.llm_service import llm_service
 from app.utils import generate_nickname
@@ -178,6 +178,51 @@ async def get_or_create_visitor(
         await db.refresh(visitor)
 
     return {"id": visitor.id, "nickname": visitor.nickname}
+
+
+@router.get("/history/{visitor_id}", response_model=HistoryResponse)
+async def get_history(visitor_id: str, db: AsyncSession = Depends(get_db)):
+    """방문자의 작업 내역 조회 (최근 20개)"""
+    # visitor 확인
+    visitor = await db.get(Visitor, visitor_id)
+    if not visitor:
+        return HistoryResponse(tasks=[])
+
+    # 최근 작업 조회 (completed, processing, pending만)
+    result = await db.execute(
+        select(Task)
+        .where(Task.visitor_id == visitor_id)
+        .where(Task.status.in_(["completed", "processing", "pending"]))
+        .order_by(Task.created_at.desc())
+        .limit(20)
+    )
+    tasks = result.scalars().all()
+
+    history_items = []
+    for task in tasks:
+        # 첫 번째 이미지 URL 가져오기
+        thumbnail_url = None
+        if task.status == "completed":
+            comic_result = await db.execute(
+                select(Comic).where(Comic.task_id == task.id).limit(1)
+            )
+            comic = comic_result.scalar_one_or_none()
+            if comic and comic.image_paths:
+                image_paths = json.loads(comic.image_paths)
+                if image_paths:
+                    thumbnail_url = image_paths[0]
+
+        history_items.append(
+            TaskHistoryItem(
+                id=task.id,
+                status=task.status,
+                meeting_text_preview=task.meeting_text[:50] + ("..." if len(task.meeting_text) > 50 else ""),
+                thumbnail_url=thumbnail_url,
+                created_at=task.created_at,
+            )
+        )
+
+    return HistoryResponse(tasks=history_items)
 
 
 @router.get("/status/{task_id}", response_model=TaskStatus)

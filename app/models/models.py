@@ -7,7 +7,7 @@ KST = timezone(timedelta(hours=9))
 def now_kst() -> datetime:
     return datetime.now(KST).replace(tzinfo=None)
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Boolean
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Boolean, Float
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -47,6 +47,11 @@ class Task(Base):
     reject_reason = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     character_sheet_url = Column(Text, nullable=True)  # 캐릭터 시트 이미지 URL (내부용)
+    # 소요시간 (초)
+    scenario_duration = Column(Float, nullable=True)  # 시나리오 생성
+    character_sheet_duration = Column(Float, nullable=True)  # 캐릭터 시트 생성
+    episode_image_duration = Column(Float, nullable=True)  # 에피소드 이미지 생성
+    total_duration = Column(Float, nullable=True)  # 총 소요시간
     created_at = Column(DateTime, default=now_kst)
     updated_at = Column(DateTime, default=now_kst, onupdate=now_kst)
 
