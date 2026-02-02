@@ -1,16 +1,5 @@
-// API 서버 URL
-const API_BASE_URL = 'https://morgan-bipectinate-unnicely.ngrok-free.dev';
-
-// ngrok 무료 버전용 헤더 (interstitial 페이지 스킵)
-const NGROK_HEADERS = {
-    'ngrok-skip-browser-warning': 'true'
-};
-
-// fetch 래퍼 (ngrok 헤더 자동 추가)
-async function apiFetch(url, options = {}) {
-    const headers = { ...NGROK_HEADERS, ...(options.headers || {}) };
-    return fetch(url, { ...options, headers });
-}
+// API 서버 URL (GitHub Pages 배포 시 ngrok URL로 변경)
+const API_BASE_URL = 'https://morgan-bipectinate-unnicely.ngrok-free.dev';  // 로컬: '', 배포: 'https://xxxx.ngrok-free.app'
 
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('generate-form');
@@ -41,11 +30,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let nickname = null;
     const greeting = document.getElementById('greeting');
 
-    // 방문자 초기화
+    const historySection = document.getElementById('history-section');
+    const historyList = document.getElementById('history-list');
+
+    // 방문자 초기화 및 작업 내역 로드
     (async () => {
         try {
             const url = visitorId ? `${API_BASE_URL}/visitor?id=${visitorId}` : `${API_BASE_URL}/visitor`;
-            const res = await apiFetch(url, { method: 'POST' });
+            const res = await fetch(url, { method: 'POST' });
             const data = await res.json();
 
             if (data.id) {
@@ -57,8 +49,88 @@ document.addEventListener('DOMContentLoaded', () => {
                 greeting.textContent = `${nickname}님, 어서오세요`;
                 greeting.classList.remove('hidden');
             }
+
+            // 작업 내역 로드
+            if (visitorId) {
+                await loadHistory(visitorId);
+            }
         } catch (e) { /* 실패해도 무시 */ }
     })();
+
+    async function loadHistory(visitorId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/history/${visitorId}`);
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (!data.tasks || data.tasks.length === 0) return;
+
+            historyList.innerHTML = '';
+
+            for (const task of data.tasks) {
+                const item = document.createElement('a');
+                item.className = 'history-item';
+                item.href = task.status === 'completed' ? `/view/${task.id}` : '#';
+
+                const statusText = {
+                    completed: '완료',
+                    processing: '생성 중',
+                    pending: '대기 중'
+                };
+
+                const timeAgo = getTimeAgo(new Date(task.created_at));
+
+                item.innerHTML = `
+                    ${task.thumbnail_url
+                        ? `<img class="history-thumbnail" src="${task.thumbnail_url}" alt="">`
+                        : `<div class="history-thumbnail placeholder">${task.status === 'completed' ? '🎨' : '⏳'}</div>`
+                    }
+                    <div class="history-info">
+                        <div class="history-preview">${escapeHtml(task.meeting_text_preview)}</div>
+                        <div class="history-meta">
+                            <span class="history-status ${task.status}">${statusText[task.status]}</span>
+                            <span>${timeAgo}</span>
+                        </div>
+                    </div>
+                `;
+
+                if (task.status !== 'completed') {
+                    item.onclick = (e) => {
+                        e.preventDefault();
+                        if (task.status === 'processing') {
+                            alert('아직 생성 중입니다. 잠시만 기다려주세요.');
+                        }
+                    };
+                }
+
+                historyList.appendChild(item);
+            }
+
+            historySection.classList.remove('hidden');
+        } catch (e) {
+            console.error('작업 내역 로드 실패:', e);
+        }
+    }
+
+    function getTimeAgo(date) {
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+
+        if (minutes < 1) return '방금 전';
+        if (minutes < 60) return `${minutes}분 전`;
+        if (hours < 24) return `${hours}시간 전`;
+        if (days < 7) return `${days}일 전`;
+        return date.toLocaleDateString('ko-KR');
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
     const fallbackMessages = [
         "만화 컷을 구성하고 있어요",
@@ -242,13 +314,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append('images', blob, `image_${i}.png`);
                 });
 
-                response = await apiFetch(`${API_BASE_URL}/generate-with-images`, {
+                response = await fetch(`${API_BASE_URL}/generate-with-images`, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
                 // 텍스트만 있으면 JSON으로 전송
-                response = await apiFetch(`${API_BASE_URL}/generate`, {
+                response = await fetch(`${API_BASE_URL}/generate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ meeting_text: text, visitor_id: visitorId }),
@@ -296,14 +368,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         while (attempts < maxAttempts) {
             try {
-                const response = await apiFetch(`${API_BASE_URL}/status/${taskId}`);
+                const response = await fetch(`${API_BASE_URL}/status/${taskId}`);
                 const status = await response.json();
 
                 if (status.status === 'completed') {
                     updateProgress(100, '완료!');
                     cleanup();
                     setTimeout(() => {
-                        window.location.href = `result.html?task=${taskId}`;
+                        window.location.href = `/view/${taskId}`;
                     }, 500);
                     return;
                 }

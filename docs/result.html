@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-title" content="Toon-Minutes">
     <meta name="theme-color" content="#000000">
     <title>결과 - Toon-Minutes</title>
-    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐙</text></svg>">
     <style>
         @supports (padding: max(0px)) {
@@ -33,7 +33,7 @@
         </div>
 
         <div style="text-align: center;">
-            <a href="index.html" class="back-link">
+            <a href="/" class="back-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="19" y1="12" x2="5" y2="12"/>
                     <polyline points="12,19 5,12 12,5"/>
@@ -83,19 +83,8 @@
     </div>
 
     <script>
-        // API 서버 URL
-        const API_BASE_URL = 'https://morgan-bipectinate-unnicely.ngrok-free.dev';
-
-        // ngrok 무료 버전용 헤더 (interstitial 페이지 스킵)
-        const NGROK_HEADERS = {
-            'ngrok-skip-browser-warning': 'true'
-        };
-
-        // fetch 래퍼 (ngrok 헤더 자동 추가)
-        async function apiFetch(url, options = {}) {
-            const headers = { ...NGROK_HEADERS, ...(options.headers || {}) };
-            return fetch(url, { ...options, headers });
-        }
+        // API 서버 URL (GitHub Pages 배포 시 ngrok URL로 변경)
+        const API_BASE_URL = 'https://morgan-bipectinate-unnicely.ngrok-free.dev';  // 로컬: '', 배포: 'https://xxxx.ngrok-free.app'
 
         let comicsData = [];
         let allSlides = [];
@@ -108,10 +97,11 @@
         const viewerCounter = document.getElementById('viewer-counter');
         const comicContainer = document.getElementById('comic-container');
 
-        // URL에서 task_id 추출
+        // URL에서 task_id 추출 (/view/{task_id} 형식)
         function getTaskId() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('task');
+            const path = window.location.pathname;
+            const match = path.match(/\/view\/([^\/]+)/);
+            return match ? match[1] : null;
         }
 
         // 데이터 로드 및 렌더링
@@ -123,7 +113,7 @@
             }
 
             try {
-                const response = await apiFetch(`${API_BASE_URL}/result/${taskId}`);
+                const response = await fetch(`${API_BASE_URL}/result/${taskId}`);
                 if (!response.ok) throw new Error('결과를 불러올 수 없습니다.');
 
                 const data = await response.json();
