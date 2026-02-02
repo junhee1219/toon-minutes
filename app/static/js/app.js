@@ -1,6 +1,17 @@
 // API 서버 URL (GitHub Pages 배포 시 ngrok URL로 변경)
 const API_BASE_URL = '';  // 로컬: '', 배포: 'https://xxxx.ngrok-free.app'
 
+// ngrok 무료 버전 경고 페이지 우회용 헤더
+const ngrokHeaders = {
+    'ngrok-skip-browser-warning': 'true'
+};
+
+// fetch wrapper (ngrok 헤더 자동 추가)
+async function apiFetch(url, options = {}) {
+    const headers = { ...ngrokHeaders, ...options.headers };
+    return fetch(url, { ...options, headers });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('generate-form');
     const formSection = document.getElementById('form-section');
@@ -37,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     (async () => {
         try {
             const url = visitorId ? `${API_BASE_URL}/visitor?id=${visitorId}` : `${API_BASE_URL}/visitor`;
-            const res = await fetch(url, { method: 'POST' });
+            const res = await apiFetch(url, { method: 'POST' });
             const data = await res.json();
 
             if (data.id) {
@@ -59,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadHistory(visitorId) {
         try {
-            const res = await fetch(`${API_BASE_URL}/history/${visitorId}`);
+            const res = await apiFetch(`${API_BASE_URL}/history/${visitorId}`);
             if (!res.ok) return;
 
             const data = await res.json();
@@ -314,13 +325,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append('images', blob, `image_${i}.png`);
                 });
 
-                response = await fetch(`${API_BASE_URL}/generate-with-images`, {
+                response = await apiFetch(`${API_BASE_URL}/generate-with-images`, {
                     method: 'POST',
                     body: formData,
                 });
             } else {
                 // 텍스트만 있으면 JSON으로 전송
-                response = await fetch(`${API_BASE_URL}/generate`, {
+                response = await apiFetch(`${API_BASE_URL}/generate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ meeting_text: text, visitor_id: visitorId }),
@@ -368,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         while (attempts < maxAttempts) {
             try {
-                const response = await fetch(`${API_BASE_URL}/status/${taskId}`);
+                const response = await apiFetch(`${API_BASE_URL}/status/${taskId}`);
                 const status = await response.json();
 
                 if (status.status === 'completed') {

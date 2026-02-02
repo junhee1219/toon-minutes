@@ -86,6 +86,13 @@
         // API 서버 URL (GitHub Pages 배포 시 ngrok URL로 변경)
         const API_BASE_URL = '';  // 로컬: '', 배포: 'https://xxxx.ngrok-free.app'
 
+        // ngrok 무료 버전 경고 페이지 우회용 헤더
+        const ngrokHeaders = { 'ngrok-skip-browser-warning': 'true' };
+        async function apiFetch(url, options = {}) {
+            const headers = { ...ngrokHeaders, ...options.headers };
+            return fetch(url, { ...options, headers });
+        }
+
         let comicsData = [];
         let allSlides = [];
         let currentSlide = 0;
@@ -113,7 +120,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE_URL}/result/${taskId}`);
+                const response = await apiFetch(`${API_BASE_URL}/result/${taskId}`);
                 if (!response.ok) throw new Error('결과를 불러올 수 없습니다.');
 
                 const data = await response.json();
