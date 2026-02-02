@@ -25,6 +25,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const tipText = document.getElementById('tip-text');
     const meetingInput = document.getElementById('meeting-input');
 
+    // 모바일 최적화: 입력 영역 터치 이벤트
+    meetingInput.addEventListener('touchstart', () => {
+        meetingInput.style.fontSize = '16px'; // 모바일 자동 확대 방지
+    });
+
+    meetingInput.addEventListener('blur', () => {
+        meetingInput.style.fontSize = '14px';
+    });
+
     let messageRotationInterval = null;
     let progressInterval = null;
     let currentProgress = 0;
