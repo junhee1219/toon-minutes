@@ -97,7 +97,28 @@ class NanoBananaImageService(ImageServiceInterface):
 
     async def generate_image_fast(self, prompt: str) -> str:
         """Flash 모델로 빠른 이미지 생성 (캐릭터 시트용)"""
-        response = await self._generate_with_retry(prompt, model=self.flash_model)
+        last_error = None
+
+        for attempt in range(3):
+            try:
+                response = await self.client.aio.models.generate_content(
+                    model=self.flash_model,
+                    contents=[prompt],
+                    config=types.GenerateContentConfig(
+                        image_config=types.ImageConfig(
+                            aspect_ratio="9:16",
+                            # Flash 모델은 image_size 미지원
+                        ),
+                        response_modalities=["IMAGE", "TEXT"],
+                    ),
+                )
+                break
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Flash 이미지 생성 실패 (시도 {attempt + 1}/3): {type(e).__name__}: {e}")
+        else:
+            logger.error(f"Flash 이미지 생성 최종 실패: {type(last_error).__name__}: {last_error}")
+            raise last_error
 
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
@@ -136,8 +157,6 @@ You MUST maintain exactly:
 - Same color palette and tone
 - Same background atmosphere
 
-IMPORTANT: DO NOT include any text, labels, speech bubbles, or captions in the generated image.
-
 Now draw the following scene using these characters and style:
 
 """
@@ -153,7 +172,7 @@ Now draw the following scene using these characters and style:
                     ],
                     config=types.GenerateContentConfig(
                         image_config=types.ImageConfig(
-                            aspect_ratio="16:9",
+                            aspect_ratio="9:16",
                             image_size="2K",
                         ),
                         response_modalities=["IMAGE", "TEXT"],
