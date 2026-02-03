@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const task of data.tasks) {
                 const item = document.createElement('a');
                 item.className = 'history-item';
-                item.href = task.status === 'completed' ? `/view/${task.id}` : '#';
+                item.href = task.status === 'completed' ? `result.html?task=${task.id}` : '#';
 
                 const statusText = {
                     completed: '완료',
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateProgress(100, '완료!');
                     cleanup();
                     setTimeout(() => {
-                        window.location.href = `/view/${taskId}`;
+                        window.location.href = `result.html?task=${taskId}`;
                     }, 500);
                     return;
                 }

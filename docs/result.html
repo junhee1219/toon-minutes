@@ -104,11 +104,10 @@
         const viewerCounter = document.getElementById('viewer-counter');
         const comicContainer = document.getElementById('comic-container');
 
-        // URL에서 task_id 추출 (/view/{task_id} 형식)
+        // URL에서 task_id 추출 (result.html?task={task_id} 형식)
         function getTaskId() {
-            const path = window.location.pathname;
-            const match = path.match(/\/view\/([^\/]+)/);
-            return match ? match[1] : null;
+            const params = new URLSearchParams(window.location.search);
+            return params.get('task');
         }
 
         // 데이터 로드 및 렌더링
