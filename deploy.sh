@@ -1,7 +1,7 @@
 #!/bin/bash
 # GitHub Pages 배포용 파일 복사 스크립트
 
-NGROK_URL="http://34.22.107.101:8000/"
+NGROK_URL="http://34.22.107.101:8000"
 
 echo "📁 docs 폴더로 파일 복사 중..."
 
