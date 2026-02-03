@@ -9,6 +9,7 @@ from google.genai.errors import ServerError
 from app.models import Task, Comic
 from app.services.llm_service import llm_service
 from app.services.image_service import image_service
+from app.services.telegram_service import telegram_service
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,11 @@ class ComicService:
             task.status = "processing"
             await db.commit()
 
+            try:
+                await telegram_service.notify_task_status(task_id, "processing")
+            except Exception:
+                pass
+
             # 2. LLM으로 시나리오 생성 (이미지 포함)
             scenario_start = time.time()
             panels = await llm_service.analyze_meeting(meeting_text, images)
@@ -88,11 +94,25 @@ class ComicService:
             task.status = "completed"
             await db.commit()
 
+            try:
+                await telegram_service.notify_task_status(
+                    task_id, "completed", f"총 {total_elapsed:.1f}초 소요"
+                )
+            except Exception:
+                pass
+
         except Exception as e:
             logger.error(f"[Task {short_id}] 만화 생성 실패: {e}")
             task.status = "failed"
             task.error_message = get_friendly_error_message(e)
             await db.commit()
+
+            try:
+                await telegram_service.notify_task_status(
+                    task_id, "failed", str(e)[:100]
+                )
+            except Exception:
+                pass
 
     async def _generate_single(self, panels, short_id: str = "") -> tuple[list[str], float]:
         """단일 에피소드 이미지 생성 (기존 방식)"""

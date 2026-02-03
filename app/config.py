@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     s3_bucket: str = ""
     s3_region: str = "ap-northeast-2"
 
+    # Telegram (선택)
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
