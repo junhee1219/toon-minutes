@@ -21,6 +21,9 @@ Pillow>=10.0.0
 # AWS S3
 boto3>=1.34.0
 
+# UUID v7
+uuid7>=0.1.0
+
 # Environment & Configuration
 python-dotenv>=1.0.0
 pydantic-settings>=2.1.0

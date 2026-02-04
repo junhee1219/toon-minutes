@@ -1,4 +1,4 @@
-import uuid
+from uuid_extensions import uuid7str
 from datetime import datetime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
@@ -14,7 +14,7 @@ from app.database import Base
 
 
 def generate_uuid() -> str:
-    return str(uuid.uuid4())
+    return uuid7str()
 
 
 class Visitor(Base):
