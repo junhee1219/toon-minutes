@@ -15,7 +15,7 @@ class TelegramService:
     def __init__(self):
         self.bot_token = settings.telegram_bot_token
         self.chat_id = settings.telegram_chat_id
-        self.enabled = bool(self.bot_token and self.chat_id)
+        self.enabled = bool(self.bot_token and self.chat_id and settings.env == "prod")
 
     def send_message(self, text: str) -> None:
         """텔레그램 메시지 전송 (fire-and-forget, 비즈니스 로직에 영향 없음)"""

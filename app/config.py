@@ -20,7 +20,10 @@ class Settings(BaseSettings):
     s3_bucket: str = ""
     s3_region: str = "ap-northeast-2"
 
-    # Telegram (선택)
+    # Environment
+    env: str = "prod"  # dev | prod
+
+    # Telegram (선택, prod에서만 동작)
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 

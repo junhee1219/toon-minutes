@@ -18,12 +18,11 @@ def generate_uuid() -> str:
 
 
 class Visitor(Base):
-    """핑거프린트 기반 방문자"""
+    """방문자"""
 
     __tablename__ = "visitors"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    fingerprint = Column(String(64), nullable=True)
     nickname = Column(String(30), nullable=True)
     ip_address = Column(String(45), nullable=True)  # 최초 접속 IP (IPv6 대응)
     last_ip = Column(String(45), nullable=True)     # 마지막 접속 IP
@@ -47,6 +46,7 @@ class Task(Base):
     reject_reason = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     character_sheet_url = Column(Text, nullable=True)  # 캐릭터 시트 이미지 URL (내부용)
+    meeting_img = Column(Text, nullable=True)  # 첨부 이미지 S3 URL (JSON array)
     # 소요시간 (초)
     scenario_duration = Column(Float, nullable=True)  # 시나리오 생성
     character_sheet_duration = Column(Float, nullable=True)  # 캐릭터 시트 생성
