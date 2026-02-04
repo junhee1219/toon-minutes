@@ -70,6 +70,16 @@ class NanoBananaImageService(ImageServiceInterface):
         logger.error(f"이미지 생성 최종 실패: {type(last_error).__name__}: {last_error}")
         raise last_error
 
+    def upload_to_s3(self, image_data: bytes, filename: str) -> str:
+        """바이트 데이터를 S3에 업로드하고 URL 반환"""
+        self.s3.upload_fileobj(
+            BytesIO(image_data),
+            self.bucket,
+            filename,
+            ExtraArgs={"ContentType": "image/png", "ACL": "public-read"},
+        )
+        return f"https://{self.bucket}.s3.{settings.s3_region}.amazonaws.com/{filename}"
+
     async def generate_image(self, prompt: str) -> str:
         """Gemini API로 이미지 생성 후 S3에 업로드"""
         response = await self._generate_with_retry(prompt)

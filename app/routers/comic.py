@@ -8,7 +8,6 @@ from app.database import get_db
 from app.models import Task, Comic, Visitor
 from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario, GenerateResponse, TaskHistoryItem, HistoryResponse
 from app.services.comic_service import comic_service
-from app.services.llm_service import llm_service
 from app.services.telegram_service import telegram_service
 from app.utils import generate_nickname
 
@@ -21,7 +20,7 @@ async def generate_comic(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """만화 생성 요청 (입력 검증 포함)"""
+    """만화 생성 요청"""
     # 1. Visitor 조회
     visitor_id = None
     nickname = None
@@ -31,31 +30,19 @@ async def generate_comic(
             visitor_id = visitor.id
             nickname = visitor.nickname
 
-    # 2. 입력 검증 + 대기 메시지 생성
-    validation = await llm_service.validate_input(request.meeting_text)
-
-    # 3. Task 생성 (거부/통과 모두 저장)
+    # 2. Task 생성 → 즉시 응답 (검증은 백그라운드에서 시나리오와 동시 실행)
     task = Task(
         visitor_id=visitor_id,
         meeting_text=request.meeting_text,
-        is_valid=validation.is_valid,
-        reject_reason=validation.reject_reason,
-        status="rejected" if not validation.is_valid else "pending",
+        status="pending",
     )
     db.add(task)
     await db.commit()
     await db.refresh(task)
 
-    # 3. 텔레그램 알림 (reject 여부 상관없이 요청 즉시 알림)
     telegram_service.notify_task_created(nickname, request.meeting_text)
 
-    if not validation.is_valid:
-        raise HTTPException(
-            status_code=400,
-            detail=validation.reject_reason or "만화로 변환할 수 없는 입력입니다.",
-        )
-
-    # 4. 백그라운드에서 만화 생성
+    # 3. 백그라운드에서 검증 + 만화 생성 (병렬)
     background_tasks.add_task(
         comic_service.create_comic,
         db,
@@ -71,7 +58,6 @@ async def generate_comic(
             created_at=task.created_at,
             updated_at=task.updated_at,
         ),
-        messages=validation.messages,
         nickname=nickname,
     )
 
@@ -102,31 +88,19 @@ async def generate_comic_with_images(
             if content:
                 image_bytes_list.append(content)
 
-    # 3. 입력 검증 + 대기 메시지 생성
-    validation = await llm_service.validate_input(meeting_text)
-
-    # 4. Task 생성
+    # 3. Task 생성 → 즉시 응답
     task = Task(
         visitor_id=db_visitor_id,
         meeting_text=meeting_text,
-        is_valid=validation.is_valid,
-        reject_reason=validation.reject_reason,
-        status="rejected" if not validation.is_valid else "pending",
+        status="pending",
     )
     db.add(task)
     await db.commit()
     await db.refresh(task)
 
-    # 5. 텔레그램 알림 (reject 여부 상관없이 요청 즉시 알림)
     telegram_service.notify_task_created(nickname, meeting_text)
 
-    if not validation.is_valid:
-        raise HTTPException(
-            status_code=400,
-            detail=validation.reject_reason or "만화로 변환할 수 없는 입력입니다.",
-        )
-
-    # 6. 백그라운드에서 만화 생성 (이미지 포함)
+    # 4. 백그라운드에서 검증 + 만화 생성 (병렬)
     background_tasks.add_task(
         comic_service.create_comic,
         db,
@@ -143,7 +117,6 @@ async def generate_comic_with_images(
             created_at=task.created_at,
             updated_at=task.updated_at,
         ),
-        messages=validation.messages,
         nickname=nickname,
     )
 

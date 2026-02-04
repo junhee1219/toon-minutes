@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from google.genai.errors import ServerError
 
 from app.models import Task, Comic
+from app.database import async_session
 from app.services.llm_service import llm_service
 from app.services.image_service import image_service
 from app.services.telegram_service import telegram_service
@@ -46,6 +47,10 @@ class ComicService:
         if not task:
             return
 
+        # 첨부 이미지 S3 저장 (fire-and-forget)
+        if images:
+            asyncio.create_task(self._save_meeting_images(task_id, images))
+
         total_start = time.time()
         short_id = task_id[:8]
 
@@ -57,12 +62,26 @@ class ComicService:
 
             telegram_service.send_message(f"⏳ Task [{short_id}] 생성 시작")
 
-            # 2. LLM으로 시나리오 생성 (이미지 포함)
+            # 2. 검증 + 시나리오 동시 생성 (텍스트 모델은 비용 저렴)
             scenario_start = time.time()
-            panels = await llm_service.analyze_meeting(meeting_text, images)
+            validation, panels = await asyncio.gather(
+                llm_service.validate_input(meeting_text),
+                llm_service.analyze_meeting(meeting_text, images),
+            )
             scenario_elapsed = time.time() - scenario_start
+
+            # 3. 검증 실패 시 중단
+            if not validation.is_valid:
+                logger.info(f"[Task {short_id}] 검증 실패: {validation.reject_reason}")
+                task.status = "rejected"
+                task.is_valid = False
+                task.reject_reason = validation.reject_reason
+                task.error_message = validation.reject_reason
+                await db.commit()
+                return
+
             task.scenario_duration = round(scenario_elapsed, 1)
-            logger.info(f"[Task {short_id}] 시나리오 생성 완료 ({scenario_elapsed:.1f}s) - {len(panels)}개 에피소드")
+            logger.info(f"[Task {short_id}] 검증 통과 + 시나리오 생성 완료 ({scenario_elapsed:.1f}s) - {len(panels)}개 에피소드")
 
             # 3. 에피소드 수에 따라 분기
             if len(panels) >= 2:
@@ -167,6 +186,26 @@ DO NOT include any text, labels, or captions in the image.
 
         paths = [path for _, path in sorted(results, key=lambda x: x[0])]
         return paths, sheet_elapsed, episode_elapsed
+
+    async def _save_meeting_images(self, task_id: str, images: list[bytes]) -> None:
+        """첨부 이미지를 S3에 저장하고 task.meeting_img 업데이트 (fire-and-forget)"""
+        short_id = task_id[:8]
+        try:
+            urls = []
+            for i, img_bytes in enumerate(images):
+                filename = f"toon-minutes/meeting-img/{task_id}_{i}.png"
+                url = image_service.upload_to_s3(img_bytes, filename)
+                urls.append(url)
+
+            async with async_session() as session:
+                task = await session.get(Task, task_id)
+                if task:
+                    task.meeting_img = json.dumps(urls)
+                    await session.commit()
+
+            logger.info(f"[Task {short_id}] 첨부 이미지 {len(urls)}개 S3 저장 완료")
+        except Exception as e:
+            logger.warning(f"[Task {short_id}] 첨부 이미지 S3 저장 실패: {e}")
 
 
 comic_service = ComicService()

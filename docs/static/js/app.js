@@ -30,6 +30,75 @@ document.addEventListener('DOMContentLoaded', () => {
         meetingInput.style.fontSize = '14px';
     });
 
+    // 이미지 붙여넣기 (Ctrl+V / Cmd+V) 지원
+    meetingInput.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const blob = item.getAsFile();
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = document.createElement('img');
+                    img.src = ev.target.result;
+                    img.style.maxWidth = '100%';
+                    img.style.borderRadius = '8px';
+                    img.style.margin = '8px 0';
+
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        range.deleteContents();
+                        range.insertNode(img);
+                        range.setStartAfter(img);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    } else {
+                        meetingInput.appendChild(img);
+                    }
+                };
+                reader.readAsDataURL(blob);
+                return;
+            }
+        }
+    });
+
+    // 이미지 드래그 앤 드롭 지원
+    meetingInput.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        meetingInput.classList.add('drag-over');
+    });
+
+    meetingInput.addEventListener('dragleave', () => {
+        meetingInput.classList.remove('drag-over');
+    });
+
+    meetingInput.addEventListener('drop', (e) => {
+        e.preventDefault();
+        meetingInput.classList.remove('drag-over');
+
+        const files = e.dataTransfer?.files;
+        if (!files) return;
+
+        for (const file of files) {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const img = document.createElement('img');
+                    img.src = ev.target.result;
+                    img.style.maxWidth = '100%';
+                    img.style.borderRadius = '8px';
+                    img.style.margin = '8px 0';
+                    meetingInput.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    });
+
     let messageRotationInterval = null;
     let progressInterval = null;
     let currentProgress = 0;
@@ -387,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                if (status.status === 'failed') {
+                if (status.status === 'failed' || status.status === 'rejected') {
                     cleanup();
                     showForm();
                     showError(status.error_message || '만화 생성에 실패했습니다');
