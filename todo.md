@@ -1,7 +1,9 @@
 # Toon-Minutes TODO
 
-## 지금 해야 할 것
-- [x] Gemini API 키 발급: https://aistudio.google.com/
-- [x] `.env` 파일에 `GEMINI_API_KEY` 입력
-- [x] AWS S3 버킷 생성 및 IAM 키 발급
-- [x] `.env` 파일에 S3 환경변수 입력 (`S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`, `S3_REGION`)
+- 카카오 공유하기 기능
+- 이미지도 입력 가능하도록 수정
+- 도메인 발급 및 세팅
+- 회원가입기능
+- S3 upload 비동기로 동작
+- 다운로드 기능 정비
+- 만화 스타일 생성 등
