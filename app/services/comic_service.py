@@ -55,10 +55,7 @@ class ComicService:
             task.status = "processing"
             await db.commit()
 
-            try:
-                await telegram_service.notify_task_status(task_id, "processing")
-            except Exception:
-                pass
+            telegram_service.send_message(f"⏳ Task [{short_id}] 생성 시작")
 
             # 2. LLM으로 시나리오 생성 (이미지 포함)
             scenario_start = time.time()
@@ -94,12 +91,9 @@ class ComicService:
             task.status = "completed"
             await db.commit()
 
-            try:
-                await telegram_service.notify_task_status(
-                    task_id, "completed", f"총 {total_elapsed:.1f}초 소요"
-                )
-            except Exception:
-                pass
+            telegram_service.notify_task_completed(
+                task_id, meeting_text, image_paths, total_elapsed
+            )
 
         except Exception as e:
             logger.error(f"[Task {short_id}] 만화 생성 실패: {e}")
@@ -107,12 +101,7 @@ class ComicService:
             task.error_message = get_friendly_error_message(e)
             await db.commit()
 
-            try:
-                await telegram_service.notify_task_status(
-                    task_id, "failed", str(e)[:100]
-                )
-            except Exception:
-                pass
+            telegram_service.notify_task_failed(task_id, str(e))
 
     async def _generate_single(self, panels, short_id: str = "") -> tuple[list[str], float]:
         """단일 에피소드 이미지 생성 (기존 방식)"""

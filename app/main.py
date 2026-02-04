@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -19,13 +20,26 @@ from app.config import settings
 from app.database import init_db, get_db
 from app.models import Task, Comic
 from app.routers import comic
+from app.services.telegram_service import telegram_service
+
+logger = logging.getLogger(__name__)
+
+
+async def _health_check_loop() -> None:
+    """20분마다 헬스체크 알림"""
+    while True:
+        await asyncio.sleep(20 * 60)
+        telegram_service.notify_health_check()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """애플리케이션 시작/종료 이벤트"""
     await init_db()
+    telegram_service.notify_server_started()
+    health_task = asyncio.create_task(_health_check_loop())
     yield
+    health_task.cancel()
 
 
 app = FastAPI(

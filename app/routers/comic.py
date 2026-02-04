@@ -9,6 +9,7 @@ from app.models import Task, Comic, Visitor
 from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario, GenerateResponse, TaskHistoryItem, HistoryResponse
 from app.services.comic_service import comic_service
 from app.services.llm_service import llm_service
+from app.services.telegram_service import telegram_service
 from app.utils import generate_nickname
 
 router = APIRouter(tags=["comic"])
@@ -45,13 +46,16 @@ async def generate_comic(
     await db.commit()
     await db.refresh(task)
 
+    # 3. 텔레그램 알림 (reject 여부 상관없이 요청 즉시 알림)
+    telegram_service.notify_task_created(nickname, request.meeting_text)
+
     if not validation.is_valid:
         raise HTTPException(
             status_code=400,
             detail=validation.reject_reason or "만화로 변환할 수 없는 입력입니다.",
         )
 
-    # 3. 백그라운드에서 만화 생성
+    # 4. 백그라운드에서 만화 생성
     background_tasks.add_task(
         comic_service.create_comic,
         db,
@@ -113,13 +117,16 @@ async def generate_comic_with_images(
     await db.commit()
     await db.refresh(task)
 
+    # 5. 텔레그램 알림 (reject 여부 상관없이 요청 즉시 알림)
+    telegram_service.notify_task_created(nickname, meeting_text)
+
     if not validation.is_valid:
         raise HTTPException(
             status_code=400,
             detail=validation.reject_reason or "만화로 변환할 수 없는 입력입니다.",
         )
 
-    # 5. 백그라운드에서 만화 생성 (이미지 포함)
+    # 6. 백그라운드에서 만화 생성 (이미지 포함)
     background_tasks.add_task(
         comic_service.create_comic,
         db,
