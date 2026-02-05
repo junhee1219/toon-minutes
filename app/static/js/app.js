@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.nickname) {
                 nickname = data.nickname;
                 greeting.textContent = `${nickname}님, 어서오세요`;
-                greeting.classList.remove('hidden');
             }
 
             // 작업 내역 로드

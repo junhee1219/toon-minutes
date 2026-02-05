@@ -48,7 +48,7 @@
                 <h1>Toonify</h1>
             </div>
             <p>3줄 요약 대신 4컷 만화</p>
-            <div id="greeting" class="greeting hidden"></div>
+            <div id="greeting" class="greeting"></div>
         </div>
 
         <div class="comic-container" id="comic-container">
@@ -138,7 +138,6 @@
                 const data = await res.json();
                 if (data.nickname) {
                     greeting.textContent = `${data.nickname}님, 어때요?`;
-                    greeting.classList.remove('hidden');
                 }
             } catch (e) { /* 실패해도 무시 */ }
         })();
