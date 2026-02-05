@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tips = [
         "만화 생성에는 1-2분 정도 소요됩니다",
         "생성된 만화는 다운로드할 수 있어요",
-        "회의록이 길면 여러 에피소드로 나뉠 수 있어요",
+        "스토리가 길면 여러 에피소드로 나뉠 수 있어요",
     ];
 
     // contenteditable에서 텍스트와 이미지 추출
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function simulateProgress() {
         const stages = [
-            { target: 20, status: '회의록 분석 중...' },
+            { target: 20, status: '스토리 분석 중...' },
             { target: 40, status: '스토리 구성 중...' },
             { target: 55, status: '1번째 컷 생성 중...' },
             { target: 70, status: '2번째 컷 생성 중...' },
