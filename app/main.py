@@ -35,7 +35,10 @@ async def _health_check_loop() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """애플리케이션 시작/종료 이벤트"""
-    await init_db()
+    # dev 환경에서만 테이블 자동 생성 (Spring ddl-auto=update와 유사)
+    if settings.env == "DEV":
+        await init_db()
+        logger.info("Dev mode: Database tables auto-created")
     telegram_service.notify_server_started()
     health_task = asyncio.create_task(_health_check_loop())
     yield
@@ -44,8 +47,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Toon-Minutes",
-    description="회의록을 4컷 만화로 변환하는 서비스",
-    version="0.1.0",
+    description="4컷 만화로 변환하는 서비스",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
