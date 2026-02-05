@@ -8,9 +8,25 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="toonify">
     <meta name="theme-color" content="#000000">
-    <title>Toonify</title>
+    <meta name="description" content="텍스트를 4컷 만화로 변환하는 서비스. 카톡 대화, 회의록, 에러 로그 뭐든 넣어보세요!">
+
+    <!-- Open Graph (카카오톡, 페이스북 등 미리보기) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Toonify - 3줄 요약 대신 4컷 만화">
+    <meta property="og:description" content="텍스트를 4컷 만화로 변환하는 서비스. 뭐든 넣어보세요!">
+    <meta property="og:image" content="https://toonify.kr/static/images/og-image.png">
+    <meta property="og:url" content="https://toonify.kr">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Toonify - 3줄 요약 대신 4컷 만화">
+    <meta name="twitter:description" content="텍스트를 4컷 만화로 변환하는 서비스. 뭐든 넣어보세요!">
+    <meta name="twitter:image" content="https://toonify.kr/static/images/og-image.png">
+
+    <title>Toonify - 3줄 요약 대신 4컷 만화</title>
     <link rel="stylesheet" href="static/css/style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐙</text></svg>">
+    <link rel="icon" type="image/png" href="/static/images/favicon-32.png">
+    <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png">
     <style>
         @supports (padding: max(0px)) {
             body {
@@ -24,7 +40,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Toonify</h1>
+            <div class="title-row">
+                <a href="https://toonify.kr" class="logo-corner">
+                    <img src="/static/images/logo.webp" alt="Toonify" class="logo">
+                </a>
+                <h1>Toonify</h1>
+            </div>
             <p>3줄 요약 대신 4컷 만화</p>
             <div id="greeting" class="greeting hidden"></div>
         </div>

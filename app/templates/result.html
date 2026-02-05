@@ -8,9 +8,25 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Toonify">
     <meta name="theme-color" content="#000000">
-    <title>결과 - Toonify</title>
+    <meta name="description" content="Toonify로 만든 4컷 만화를 확인하세요!">
+
+    <!-- Open Graph (카카오톡, 페이스북 등 미리보기) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Toonify - 4컷 만화 완성!">
+    <meta property="og:description" content="이 만화 어때요? Toonify에서 만들었어요!">
+    <meta property="og:image" content="https://toonify.kr/static/images/og-image.png">
+    <meta property="og:url" content="https://toonify.kr">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Toonify - 4컷 만화 완성!">
+    <meta name="twitter:description" content="이 만화 어때요? Toonify에서 만들었어요!">
+    <meta name="twitter:image" content="https://toonify.kr/static/images/og-image.png">
+
+    <title>Toonify - 3줄 요약 대신 4컷 만화</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐙</text></svg>">
+    <link rel="icon" type="image/png" href="/static/images/favicon-32.png">
+    <link rel="apple-touch-icon" href="/static/images/apple-touch-icon.png">
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js" integrity="sha384-DKYJZ8NLiK8MN4/C5P2dtSmLQ4KwPaoqAfyA/DfmEc1VDxu4yyC7wy6K1Hs90nka" crossorigin="anonymous"></script>
     <style>
         @supports (padding: max(0px)) {
@@ -24,9 +40,15 @@
 </head>
 <body>
     <div class="result-container">
-        <div class="result-header">
-            <h1>완성!</h1>
-            <p>당신의 이야기가 4컷 만화로</p>
+        <div class="header">
+            <div class="title-row">
+                <a href="https://toonify.kr" class="logo-corner">
+                    <img src="/static/images/logo.webp" alt="Toonify" class="logo">
+                </a>
+                <h1>Toonify</h1>
+            </div>
+            <p>3줄 요약 대신 4컷 만화</p>
+            <div id="greeting" class="greeting hidden"></div>
         </div>
 
         <div class="comic-container" id="comic-container">
@@ -105,6 +127,21 @@
         const viewerCaption = document.getElementById('viewer-caption');
         const viewerCounter = document.getElementById('viewer-counter');
         const comicContainer = document.getElementById('comic-container');
+        const greeting = document.getElementById('greeting');
+
+        // 방문자 닉네임 로드
+        let visitorId = localStorage.getItem('visitor_id');
+        (async () => {
+            try {
+                const url = visitorId ? `${API_BASE_URL}/visitor?id=${visitorId}` : `${API_BASE_URL}/visitor`;
+                const res = await apiFetch(url, { method: 'POST' });
+                const data = await res.json();
+                if (data.nickname) {
+                    greeting.textContent = `${data.nickname}님, 어때요?`;
+                    greeting.classList.remove('hidden');
+                }
+            } catch (e) { /* 실패해도 무시 */ }
+        })();
 
         // URL에서 task_id 추출 (/view/{task_id} 형식)
         function getTaskId() {
@@ -183,7 +220,7 @@
                     allSlides.push({
                         src: path,
                         caption: panel && panel.dialogue ? panel.dialogue : '',
-                        label: `Part ${comic.part_number} - ${pi + 1}컷`,
+                        label: `Page ${pi + 1}`,
                         comicIndex: ci,
                         panelIndex: pi,
                     });
@@ -243,23 +280,6 @@
                 navigate(diff > 0 ? -1 : 1);
             }
         });
-
-        // 다운로드
-        async function downloadImage(url, filename) {
-            try {
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(link.href);
-            } catch (error) {
-                window.open(url, '_blank');
-            }
-        }
 
         // 카카오 SDK 초기화
         Kakao.init('955207d0a5010d84ca62d1c8d706c2b6');
