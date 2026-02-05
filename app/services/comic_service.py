@@ -183,9 +183,9 @@ class ComicService:
     async def _generate_single(self, panels, short_id: str = "") -> tuple[list[str], float]:
         """단일 에피소드 이미지 생성 (기존 방식)"""
         image_start = time.time()
-
+        base_style_prompt = "Masterpiece, best quality, 2D Webtoon style, bold black outlines, flat colors, comic book layout, vibrant pastel tones. "
         async def generate_with_index(index: int, prompt: str):
-            path = await image_service.generate_image(prompt)
+            path = await image_service.generate_image(base_style_prompt + prompt)
             return index, path
 
         tasks = [
@@ -209,10 +209,18 @@ class ComicService:
             for p in panels
         ])
 
-        character_sheet_prompt = f"""Create a CHARACTER SHEET with all main characters standing together.
-DO NOT include any text, labels, or captions in the image.
+        character_sheet_prompt = f"""
+Create a CHARACTER DESIGN SHEET (Turnaround view) for the main characters.
+**IMPORTANT:** Ignore all actions (running, eating, sitting) described below. Focus ONLY on the character's design, clothing, and features.
 
-{all_prompts}"""
+**Composition:**
+- Draw the main characters standing side-by-side in a neutral pose (Front view).
+- Background matching the story's world setting, no text, no speech bubbles.
+- Style: 2D Webtoon style, flat color, bold outlines, SD(Super Deformed) ratio.
+
+**Context from story (Extract character details from here):**
+
+{all_prompts}""".strip()
 
         logger.info(f"[Task {short_id}] 캐릭터 시트 프롬프트: {character_sheet_prompt[:200]}...")
 
