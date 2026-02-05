@@ -150,6 +150,18 @@ document.addEventListener('DOMContentLoaded', () => {
         "스토리가 길면 여러 에피소드로 나뉠 수 있어요",
     ];
 
+    // 이미지 선택 모달 관련
+    const imageSelectModal = document.getElementById('image-select-modal');
+    const imageSelectGrid = document.getElementById('image-select-grid');
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const selectedCountEl = document.getElementById('selected-count');
+    const imageSelectCancel = document.getElementById('image-select-cancel');
+    const imageSelectConfirm = document.getElementById('image-select-confirm');
+
+    let pendingImages = []; // { blob, previewUrl }
+    let selectedIndices = new Set();
+    let imageSelectResolve = null;
+
     // contenteditable에서 텍스트와 이미지 추출
     async function extractContent() {
         const html = meetingInput.innerHTML;
@@ -161,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 이미지 추출
         const images = [];
+        const imageUrls = [];  // 외부 URL
         const imgs = doc.querySelectorAll('img');
 
         for (const img of imgs) {
@@ -173,22 +186,148 @@ document.addEventListener('DOMContentLoaded', () => {
                     // base64 → blob
                     const response = await fetch(src);
                     blob = await response.blob();
+                    images.push({ blob, previewUrl: src });
                 } else if (src.startsWith('blob:')) {
                     // blob URL → blob
                     const response = await fetch(src);
                     blob = await response.blob();
+                    images.push({ blob, previewUrl: src });
                 } else {
-                    // 외부 URL은 스킵 (CORS)
-                    continue;
+                    // 외부 URL은 서버에서 처리하도록 수집
+                    imageUrls.push({ url: src, previewUrl: src });
                 }
-                images.push(blob);
             } catch (e) {
                 console.error('이미지 추출 실패:', e);
             }
         }
 
-        return { text, images };
+        return { text, images, imageUrls };
     }
+
+    // 이미지 선택 모달 표시
+    function showImageSelectModal(images) {
+        pendingImages = images;
+        selectedIndices.clear();
+
+        // 그리드 렌더링
+        imageSelectGrid.innerHTML = images.map((img, i) => `
+            <div class="image-select-item" data-index="${i}">
+                <img src="${img.previewUrl}" alt="Image ${i + 1}">
+                <div class="check-overlay">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20,6 9,17 4,12"/>
+                    </svg>
+                </div>
+            </div>
+        `).join('');
+
+        // 이벤트 리스너 추가
+        imageSelectGrid.querySelectorAll('.image-select-item').forEach(item => {
+            item.addEventListener('click', () => toggleImageSelection(parseInt(item.dataset.index)));
+        });
+
+        selectAllCheckbox.checked = false;
+        updateSelectionUI();
+        imageSelectModal.classList.add('active');
+
+        return new Promise(resolve => {
+            imageSelectResolve = resolve;
+        });
+    }
+
+    function toggleImageSelection(index) {
+        const item = imageSelectGrid.querySelector(`[data-index="${index}"]`);
+
+        if (selectedIndices.has(index)) {
+            selectedIndices.delete(index);
+            item.classList.remove('selected');
+        } else {
+            if (selectedIndices.size >= 3) {
+                // 이미 3개 선택됨 - 진동 효과
+                item.style.animation = 'shake 0.3s';
+                setTimeout(() => item.style.animation = '', 300);
+                return;
+            }
+            selectedIndices.add(index);
+            item.classList.add('selected');
+        }
+
+        updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+        const count = selectedIndices.size;
+        selectedCountEl.textContent = `${count}/3 선택됨`;
+        imageSelectConfirm.disabled = count === 0;
+
+        // 3개 선택 시 나머지 비활성화
+        imageSelectGrid.querySelectorAll('.image-select-item').forEach(item => {
+            const index = parseInt(item.dataset.index);
+            if (count >= 3 && !selectedIndices.has(index)) {
+                item.classList.add('disabled');
+            } else {
+                item.classList.remove('disabled');
+            }
+        });
+
+        // 전체 선택 체크박스 상태
+        selectAllCheckbox.checked = count === pendingImages.length || (count === 3 && pendingImages.length > 3);
+        selectAllCheckbox.indeterminate = count > 0 && count < Math.min(3, pendingImages.length);
+    }
+
+    // 전체 선택
+    selectAllCheckbox.addEventListener('change', () => {
+        if (selectAllCheckbox.checked) {
+            // 최대 3개까지만 선택
+            selectedIndices.clear();
+            for (let i = 0; i < Math.min(3, pendingImages.length); i++) {
+                selectedIndices.add(i);
+            }
+        } else {
+            selectedIndices.clear();
+        }
+
+        imageSelectGrid.querySelectorAll('.image-select-item').forEach(item => {
+            const index = parseInt(item.dataset.index);
+            if (selectedIndices.has(index)) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+
+        updateSelectionUI();
+    });
+
+    // 취소
+    imageSelectCancel.addEventListener('click', () => {
+        imageSelectModal.classList.remove('active');
+        if (imageSelectResolve) {
+            imageSelectResolve(null);
+            imageSelectResolve = null;
+        }
+    });
+
+    // 확인
+    imageSelectConfirm.addEventListener('click', () => {
+        imageSelectModal.classList.remove('active');
+        const selected = Array.from(selectedIndices).sort((a, b) => a - b).map(i => pendingImages[i]);
+        if (imageSelectResolve) {
+            imageSelectResolve(selected);
+            imageSelectResolve = null;
+        }
+    });
+
+    // 모달 바깥 클릭 시 닫기
+    imageSelectModal.addEventListener('click', (e) => {
+        if (e.target === imageSelectModal) {
+            imageSelectModal.classList.remove('active');
+            if (imageSelectResolve) {
+                imageSelectResolve(null);
+                imageSelectResolve = null;
+            }
+        }
+    });
 
     // 메시지 로테이션
     function startMessageRotation(messages) {
@@ -300,27 +439,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // contenteditable에서 텍스트와 이미지 추출
-            const { text, images } = await extractContent();
+            const { text, images, imageUrls } = await extractContent();
 
-            if (text?.trim()?.length === 0 && images.length === 0) {
+            // 모든 이미지 (로컬 blob + 외부 URL) 합치기
+            const allImages = [
+                ...images.map(img => ({ type: 'blob', blob: img.blob, previewUrl: img.previewUrl })),
+                ...imageUrls.map(img => ({ type: 'url', url: img.url, previewUrl: img.previewUrl })),
+            ];
+
+            if (text?.trim()?.length === 0 && allImages.length === 0) {
                 throw new Error('내용을 입력해주세요.');
             }
 
-            if (images.length > 3) {
-                throw new Error('이미지는 3장까지만 넣을 수 있어요 ㅠㅠ 좀만 줄여주세요!');
+            // 이미지가 3장 초과면 선택 모달 표시
+            let finalImages = allImages;
+            if (allImages.length > 3) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+
+                // 모달용 데이터로 변환
+                const modalImages = allImages.map(img => ({
+                    ...img,
+                    previewUrl: img.previewUrl,
+                }));
+                pendingImages = modalImages;
+
+                const selected = await showImageSelectModal(modalImages);
+                if (!selected) {
+                    // 취소됨
+                    return;
+                }
+                finalImages = selected;
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = '🤔 내용 파악하는 중...';
             }
 
             let response;
 
-            if (images.length > 0) {
+            if (finalImages.length > 0) {
                 // 이미지가 있으면 FormData로 전송
                 const formData = new FormData();
                 formData.append('meeting_text', text);
                 if (visitorId) formData.append('visitor_id', visitorId);
 
-                images.forEach((blob, i) => {
+                // blob과 URL 분리
+                const blobs = [];
+                const urls = [];
+                for (const img of finalImages) {
+                    if (img.type === 'blob') {
+                        blobs.push(img.blob);
+                    } else if (img.type === 'url') {
+                        urls.push(img.url);
+                    }
+                }
+
+                blobs.forEach((blob, i) => {
                     formData.append('images', blob, `image_${i}.png`);
                 });
+
+                if (urls.length > 0) {
+                    formData.append('image_urls', JSON.stringify(urls));
+                }
 
                 response = await apiFetch(`${API_BASE_URL}/generate-with-images`, {
                     method: 'POST',

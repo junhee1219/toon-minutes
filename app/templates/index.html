@@ -118,6 +118,30 @@
         </footer>
     </div>
 
+    <!-- 이미지 선택 모달 -->
+    <div class="image-select-modal" id="image-select-modal">
+        <div class="image-select-content">
+            <div class="image-select-header">
+                <h3>이미지 3장까지만 가능해요 🥲</h3>
+                <p>보낼 이미지를 골라주세요</p>
+            </div>
+            <div class="image-select-actions-top">
+                <label class="select-all-label">
+                    <input type="checkbox" id="select-all-checkbox">
+                    <span>전체 선택</span>
+                </label>
+                <span class="selected-count" id="selected-count">0/3 선택됨</span>
+            </div>
+            <div class="image-select-grid" id="image-select-grid">
+                <!-- JS로 이미지 목록 렌더링 -->
+            </div>
+            <div class="image-select-actions">
+                <button type="button" class="btn-cancel" id="image-select-cancel">취소</button>
+                <button type="button" class="btn-confirm" id="image-select-confirm" disabled>선택 완료</button>
+            </div>
+        </div>
+    </div>
+
     <script src="static/js/app.js"></script>
 </body>
 </html>

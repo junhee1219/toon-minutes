@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form, File, UploadFile, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import httpx
 
 from app.database import get_db, async_session
 from app.models import Task, Comic, Visitor
@@ -15,6 +16,21 @@ from app.services.llm_service import llm_service
 from app.services.telegram_service import telegram_service
 from app.utils import generate_nickname
 logger = logging.getLogger(__name__)
+
+
+async def fetch_image_from_url(url: str) -> bytes | None:
+    """외부 URL에서 이미지를 다운로드"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url, follow_redirects=True)
+            if response.status_code == 200:
+                content_type = response.headers.get("content-type", "")
+                if "image" in content_type or url.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                    return response.content
+            logger.warning(f"이미지 다운로드 실패: {url} (status={response.status_code})")
+    except Exception as e:
+        logger.warning(f"이미지 다운로드 에러: {url} ({e})")
+    return None
 
 
 async def _upload_meeting_images(task_id: str, image_bytes_list: list[bytes]) -> None:
@@ -121,6 +137,7 @@ async def generate_comic_with_images(
     meeting_text: str = Form(""),
     visitor_id: Optional[str] = Form(None),
     images: list[UploadFile] = File(default=[]),
+    image_urls: str = Form(""),  # JSON array of URLs
     db: AsyncSession = Depends(get_db),
 ):
     """만화 생성 요청 (이미지 포함)"""
@@ -140,6 +157,19 @@ async def generate_comic_with_images(
             content = await img.read()
             if content:
                 image_bytes_list.append(content)
+
+    # 2-1. 외부 URL 이미지 다운로드
+    if image_urls:
+        try:
+            urls = json.loads(image_urls)
+            if isinstance(urls, list):
+                download_tasks = [fetch_image_from_url(url) for url in urls[:5]]  # 최대 5개
+                results = await asyncio.gather(*download_tasks)
+                for img_bytes in results:
+                    if img_bytes:
+                        image_bytes_list.append(img_bytes)
+        except json.JSONDecodeError:
+            logger.warning(f"image_urls 파싱 실패: {image_urls}")
 
     # 2-1. 이미지 개수 제한 (최대 3장)
     if len(image_bytes_list) > 3:
