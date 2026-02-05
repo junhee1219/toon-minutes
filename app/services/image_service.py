@@ -76,22 +76,7 @@ class NanoBananaImageService(ImageServiceInterface):
 
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
-                filename = f"toon-minutes/{uuid.uuid4()}.png"
-                image_data = part.inline_data.data
-
-                # S3 업로드 (public-read로 설정)
-                self.s3.upload_fileobj(
-                    BytesIO(image_data),
-                    self.bucket,
-                    filename,
-                    ExtraArgs={
-                        "ContentType": "image/png",
-                        "ACL": "public-read",
-                    },
-                )
-
-                # S3 URL 반환
-                return f"https://{self.bucket}.s3.{settings.s3_region}.amazonaws.com/{filename}"
+                return await self.upload_bytes_to_s3(part.inline_data.data, prefix="toon-minutes")
 
         raise ValueError("이미지 생성 실패: 응답에 이미지가 없습니다")
 
@@ -122,22 +107,7 @@ class NanoBananaImageService(ImageServiceInterface):
 
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
-                filename = f"toon-minutes/{uuid.uuid4()}.png"
-                image_data = part.inline_data.data
-
-                # S3 업로드 (public-read로 설정)
-                self.s3.upload_fileobj(
-                    BytesIO(image_data),
-                    self.bucket,
-                    filename,
-                    ExtraArgs={
-                        "ContentType": "image/png",
-                        "ACL": "public-read",
-                    },
-                )
-
-                # S3 URL 반환
-                return f"https://{self.bucket}.s3.{settings.s3_region}.amazonaws.com/{filename}"
+                return await self.upload_bytes_to_s3(part.inline_data.data, prefix="toon-minutes")
 
         raise ValueError("이미지 생성 실패: 응답에 이미지가 없습니다")
 
@@ -195,24 +165,30 @@ Now draw the following scene using these characters and style:
 
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
-                filename = f"toon-minutes/{uuid.uuid4()}.png"
-                image_data = part.inline_data.data
-
-                # S3 업로드 (public-read로 설정)
-                self.s3.upload_fileobj(
-                    BytesIO(image_data),
-                    self.bucket,
-                    filename,
-                    ExtraArgs={
-                        "ContentType": "image/png",
-                        "ACL": "public-read",
-                    },
-                )
-
-                # S3 URL 반환
-                return f"https://{self.bucket}.s3.{settings.s3_region}.amazonaws.com/{filename}"
+                return await self.upload_bytes_to_s3(part.inline_data.data, prefix="toon-minutes")
 
         raise ValueError("이미지 생성 실패: 응답에 이미지가 없습니다")
+
+    async def upload_bytes_to_s3(self, image_bytes: bytes, prefix: str = "meeting-img") -> str:
+        """바이트 데이터를 S3에 업로드하고 URL 반환"""
+        filename = f"{prefix}/{uuid.uuid4()}.png"
+
+        # run_in_executor로 동기 S3 업로드를 비동기로 실행
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: self.s3.upload_fileobj(
+                BytesIO(image_bytes),
+                self.bucket,
+                filename,
+                ExtraArgs={
+                    "ContentType": "image/png",
+                    "ACL": "public-read",
+                },
+            ),
+        )
+
+        return f"https://{self.bucket}.s3.{settings.s3_region}.amazonaws.com/{filename}"
 
 
 image_service = NanoBananaImageService()

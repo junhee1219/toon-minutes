@@ -307,6 +307,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('내용을 입력해주세요.');
             }
 
+            if (images.length > 3) {
+                throw new Error('이미지는 3장까지만 넣을 수 있어요 ㅠㅠ 좀만 줄여주세요!');
+            }
+
             let response;
 
             if (images.length > 0) {

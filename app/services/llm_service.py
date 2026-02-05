@@ -138,7 +138,7 @@ VALIDATION_PROMPT = """
 - 대기 메시지는 만화를 생성하는 동안 사용자에게 보여줄 문구입니다.
 - 입력 내용을 인용하거나 패러디하면서 기다림을 즐겁게 만들어주세요.
 - 입력 내용을 직접 인용하지 않아도 좋습니다. 창의적으로 관련있는 내용을 만들어주세요.
-- 예시: "OO님이 말한 그 아이디어, 만화로 표현하면 어떨까요...", "회의실 분위기를 2D로 옮기는 중..."
+- 예시: "이 대화 만화로 그리면 꽤 재밌겠는데요...", "열심히 그리는 중..."
 - 다양한 톤으로: 유머, 공감, 기대감, 내용 언급 등 다양하게 섞어주세요.
 """.strip()
 
@@ -168,8 +168,10 @@ class LLMService:
         logger.error(f"LLM API 호출 최종 실패: {type(last_error).__name__}: {last_error}")
         raise last_error
 
-    async def validate_input(self, text: str) -> ValidationResult:
+    async def validate_input(self, text: str, images: list[bytes] = None) -> ValidationResult:
         """입력 텍스트가 만화로 변환할 만한 콘텐츠인지 검증하고, 대기 메시지 생성"""
+        images = images or []
+
         # 길이 제한 (3만자)
         if len(text) > 30000:
             return ValidationResult(
@@ -180,12 +182,19 @@ class LLMService:
 
         prompt = f"""
 다음 텍스트를 판별해주세요:
+{f"(첨부된 {len(images)}개의 이미지도 내용 파악에 참고하세요)" if images else ""}
 ---
 {text}
 ---""".strip()
 
+        # 멀티모달 입력: 이미지들 + 텍스트
+        contents = []
+        for img_bytes in images:
+            contents.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
+        contents.append(prompt)
+
         response = await self._generate_with_retry(
-            contents=[prompt],
+            contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=VALIDATION_PROMPT,
                 temperature=0.2,

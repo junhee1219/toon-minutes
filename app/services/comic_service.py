@@ -33,6 +33,83 @@ def get_friendly_error_message(e: Exception) -> str:
 class ComicService:
     """만화 생성 오케스트레이션 서비스"""
 
+    async def create_comic_from_scenario(
+        self,
+        db: AsyncSession,
+        task_id: str,
+        meeting_text: str,
+        scenario_task: asyncio.Task,
+        images: list[bytes] = None,
+    ) -> None:
+        """이미 시작된 시나리오 생성 task를 받아서 결과 대기 후 이미지 생성"""
+        images = images or []
+        task = await db.get(Task, task_id)
+        if not task:
+            return
+
+        total_start = time.time()
+        short_id = task_id[:8]
+
+        try:
+            # 1. 상태 업데이트
+            logger.info(f"[Task {short_id}] pending → processing")
+            task.status = "processing"
+            await db.commit()
+
+            telegram_service.send_message(f"⏳ Task [{short_id}] 생성 시작")
+
+            # 2. 시나리오 생성 결과 대기 (이미 시작된 task)
+            scenario_start = time.time()
+            panels = await scenario_task
+            scenario_elapsed = time.time() - scenario_start
+            task.scenario_duration = round(scenario_elapsed, 1)
+            logger.info(f"[Task {short_id}] 시나리오 생성 완료 ({scenario_elapsed:.1f}s) - {len(panels)}개 에피소드")
+
+            # 3. 에피소드 수에 따라 분기
+            if len(panels) >= 2:
+                # 캐릭터 시트 방식: 레퍼런스 이미지 생성 후 병렬 처리
+                image_paths, sheet_elapsed, episode_elapsed = await self._generate_with_character_sheet(task, panels, short_id)
+                task.character_sheet_duration = round(sheet_elapsed, 1)
+                task.episode_image_duration = round(episode_elapsed, 1)
+            else:
+                # 단일 에피소드: 기존 방식
+                image_paths, episode_elapsed = await self._generate_single(panels, short_id)
+                task.episode_image_duration = round(episode_elapsed, 1)
+
+            # 4. Comic 저장
+            comic = Comic(
+                task_id=task_id,
+                part_number=1,
+                panels_json=json.dumps([p.model_dump() for p in panels], ensure_ascii=False),
+                image_paths=json.dumps(image_paths),
+            )
+            db.add(comic)
+
+            # 5. 완료 상태 업데이트
+            total_elapsed = time.time() - total_start
+            task.total_duration = round(total_elapsed, 1)
+            logger.info(f"[Task {short_id}] processing → completed (총 {total_elapsed:.1f}s)")
+            task.status = "completed"
+            await db.commit()
+
+            telegram_service.notify_task_completed(
+                task_id, meeting_text, image_paths, total_elapsed
+            )
+
+        except asyncio.CancelledError:
+            logger.info(f"[Task {short_id}] 시나리오 생성 취소됨")
+            task.status = "failed"
+            task.error_message = "입력이 유효하지 않아 생성이 취소되었습니다."
+            await db.commit()
+
+        except Exception as e:
+            logger.error(f"[Task {short_id}] 만화 생성 실패: {e}")
+            task.status = "failed"
+            task.error_message = get_friendly_error_message(e)
+            await db.commit()
+
+            telegram_service.notify_task_failed(task_id, str(e))
+
     async def create_comic(
         self,
         db: AsyncSession,

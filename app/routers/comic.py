@@ -1,16 +1,41 @@
+import asyncio
 import json
+import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form, File, UploadFile, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import get_db, async_session
 from app.models import Task, Comic, Visitor
 from app.schemas import TaskCreate, TaskStatus, TaskResponse, ComicResponse, PanelScenario, GenerateResponse, TaskHistoryItem, HistoryResponse
 from app.services.comic_service import comic_service
+from app.services.image_service import image_service
 from app.services.llm_service import llm_service
 from app.services.telegram_service import telegram_service
 from app.utils import generate_nickname
+logger = logging.getLogger(__name__)
+
+
+async def _upload_meeting_images(task_id: str, image_bytes_list: list[bytes]) -> None:
+    """첨부 이미지들을 S3에 업로드하고 Task.meeting_img 업데이트 (비동기, fire-and-forget)"""
+    try:
+        # 병렬로 이미지 업로드
+        upload_tasks = [
+            image_service.upload_bytes_to_s3(img_bytes, prefix="meeting-img")
+            for img_bytes in image_bytes_list
+        ]
+        image_urls = await asyncio.gather(*upload_tasks)
+
+        # 새 세션으로 Task 업데이트
+        async with async_session() as db:
+            task = await db.get(Task, task_id)
+            if task:
+                task.meeting_img = json.dumps(image_urls)
+                await db.commit()
+                logger.info(f"Task {task_id[:8]} meeting_img 업데이트 완료: {len(image_urls)}개")
+    except Exception as e:
+        logger.warning(f"meeting_img 업로드 실패 (task={task_id[:8]}): {e}")
 
 router = APIRouter(tags=["comic"])
 
@@ -31,23 +56,36 @@ async def generate_comic(
             visitor_id = visitor.id
             nickname = visitor.nickname
 
-    # 2. 입력 검증 + 대기 메시지 생성
-    validation = await llm_service.validate_input(request.meeting_text)
-
-    # 3. Task 생성 (거부/통과 모두 저장)
+    # 2. Task 먼저 생성 (validation 전에 저장)
     task = Task(
         visitor_id=visitor_id,
         meeting_text=request.meeting_text,
-        is_valid=validation.is_valid,
-        reject_reason=validation.reject_reason,
-        status="rejected" if not validation.is_valid else "pending",
+        status="pending",
     )
     db.add(task)
     await db.commit()
     await db.refresh(task)
 
-    # 3. 텔레그램 알림 (reject 여부 상관없이 요청 즉시 알림)
+    # 3. 텔레그램 알림 (validation 전에 알림)
     telegram_service.notify_task_created(nickname, request.meeting_text)
+
+    # 4. Validation + 시나리오 생성 병렬 시작
+    validation_task = asyncio.create_task(llm_service.validate_input(request.meeting_text))
+    scenario_task = asyncio.create_task(llm_service.analyze_meeting(request.meeting_text))
+
+    # 5. Validation 결과 대기
+    validation = await validation_task
+
+    # 6. Task 업데이트 (validation 결과 반영)
+    task.is_valid = validation.is_valid
+    task.reject_reason = validation.reject_reason
+    if not validation.is_valid:
+        task.status = "rejected"
+        telegram_service.send_message(f"{nickname}님의 작업 rejected 됨\n{task.reject_reason}")
+        # Validation 실패 시 시나리오 task 취소
+        scenario_task.cancel()
+    await db.commit()
+    await db.refresh(task)
 
     if not validation.is_valid:
         raise HTTPException(
@@ -55,12 +93,13 @@ async def generate_comic(
             detail=validation.reject_reason or "만화로 변환할 수 없는 입력입니다.",
         )
 
-    # 4. 백그라운드에서 만화 생성
+    # 7. 백그라운드에서 시나리오 결과 대기 후 이미지 생성
     background_tasks.add_task(
-        comic_service.create_comic,
+        comic_service.create_comic_from_scenario,
         db,
         task.id,
         request.meeting_text,
+        scenario_task,
     )
 
     return GenerateResponse(
@@ -79,7 +118,7 @@ async def generate_comic(
 @router.post("/generate-with-images", response_model=GenerateResponse)
 async def generate_comic_with_images(
     background_tasks: BackgroundTasks,
-    meeting_text: str = Form(...),
+    meeting_text: str = Form(""),
     visitor_id: Optional[str] = Form(None),
     images: list[UploadFile] = File(default=[]),
     db: AsyncSession = Depends(get_db),
@@ -102,23 +141,49 @@ async def generate_comic_with_images(
             if content:
                 image_bytes_list.append(content)
 
-    # 3. 입력 검증 + 대기 메시지 생성
-    validation = await llm_service.validate_input(meeting_text)
+    # 2-1. 이미지 개수 제한 (최대 3장)
+    if len(image_bytes_list) > 3:
+        raise HTTPException(
+            status_code=400,
+            detail="이미지는 3장까지만 넣을 수 있어요 ㅠㅠ 좀만 줄여주세요!",
+        )
 
-    # 4. Task 생성
+    # 3. Task 먼저 생성 (validation 전에 저장)
     task = Task(
         visitor_id=db_visitor_id,
         meeting_text=meeting_text,
-        is_valid=validation.is_valid,
-        reject_reason=validation.reject_reason,
-        status="rejected" if not validation.is_valid else "pending",
+        status="pending",
     )
     db.add(task)
     await db.commit()
     await db.refresh(task)
 
-    # 5. 텔레그램 알림 (reject 여부 상관없이 요청 즉시 알림)
+    # 3-1. 이미지가 있으면 S3 업로드 비동기 시작 (병목 방지)
+    if image_bytes_list:
+        asyncio.create_task(
+            _upload_meeting_images(task.id, image_bytes_list)
+        )
+
+    # 4. 텔레그램 알림 (validation 전에 알림)
     telegram_service.notify_task_created(nickname, meeting_text)
+
+    # 5. Validation + 시나리오 생성 병렬 시작 (이미지 포함)
+    validation_task = asyncio.create_task(llm_service.validate_input(meeting_text, image_bytes_list))
+    scenario_task = asyncio.create_task(llm_service.analyze_meeting(meeting_text, image_bytes_list))
+
+    # 6. Validation 결과 대기
+    validation = await validation_task
+
+    # 7. Task 업데이트 (validation 결과 반영)
+    task.is_valid = validation.is_valid
+    task.reject_reason = validation.reject_reason
+    if not validation.is_valid:
+        task.status = "rejected"
+        telegram_service.send_message(f"{nickname}님의 작업 rejected 됨\n{task.reject_reason}")
+        # Validation 실패 시 시나리오 task 취소
+        scenario_task.cancel()
+    await db.commit()
+    await db.refresh(task)
 
     if not validation.is_valid:
         raise HTTPException(
@@ -126,12 +191,13 @@ async def generate_comic_with_images(
             detail=validation.reject_reason or "만화로 변환할 수 없는 입력입니다.",
         )
 
-    # 6. 백그라운드에서 만화 생성 (이미지 포함)
+    # 8. 백그라운드에서 시나리오 결과 대기 후 이미지 생성 (이미지 포함)
     background_tasks.add_task(
-        comic_service.create_comic,
+        comic_service.create_comic_from_scenario,
         db,
         task.id,
         meeting_text,
+        scenario_task,
         image_bytes_list,
     )
 
