@@ -86,24 +86,10 @@
             </svg>
         </button>
 
-        <button class="viewer-nav viewer-prev" onclick="navigate(-1)" aria-label="이전">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15,18 9,12 15,6"/>
-            </svg>
-        </button>
-
         <div class="viewer-content">
             <img class="viewer-img" id="viewer-img" src="" alt="">
             <div class="viewer-caption" id="viewer-caption"></div>
         </div>
-
-        <button class="viewer-nav viewer-next" onclick="navigate(1)" aria-label="다음">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9,6 15,12 9,18"/>
-            </svg>
-        </button>
-
-        <div class="viewer-counter" id="viewer-counter"></div>
     </div>
 
     <script>
@@ -118,14 +104,11 @@
         }
 
         let comicsData = [];
-        let allSlides = [];
-        let currentSlide = 0;
         let viewerOpen = false;
 
         const viewer = document.getElementById('viewer');
         const viewerImg = document.getElementById('viewer-img');
         const viewerCaption = document.getElementById('viewer-caption');
-        const viewerCounter = document.getElementById('viewer-counter');
         const comicContainer = document.getElementById('comic-container');
         const greeting = document.getElementById('greeting');
 
@@ -175,7 +158,6 @@
                 }));
 
                 renderComics();
-                buildSlides();
 
             } catch (error) {
                 comicContainer.innerHTML = `<p style="text-align: center; color: #c00;">${error.message}</p>`;
@@ -194,8 +176,8 @@
                                     onclick="openViewer(${ci}, ${pi})"
                                 >
                                 ${comic.panels[pi] && comic.panels[pi].dialogue
-                                    ? `<p>${comic.panels[pi].dialogue}</p>`
-                                    : ''}
+                ? `<p>${comic.panels[pi].dialogue}</p>`
+                : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -204,38 +186,21 @@
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 3C6.48 3 2 6.58 2 11c0 2.83 1.88 5.31 4.68 6.72l-.95 3.52c-.08.29.25.54.51.38l4.2-2.8c.5.05 1.02.08 1.56.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
                             </svg>
-
+                            단톡방에 짤 투척
                         </button>
                     </div>
                 </div>
             `).join('');
         }
 
-        function buildSlides() {
-            allSlides = [];
-            comicsData.forEach((comic, ci) => {
-                comic.image_paths.forEach((path, pi) => {
-                    const panel = comic.panels && comic.panels[pi];
-                    allSlides.push({
-                        src: path,
-                        caption: panel && panel.dialogue ? panel.dialogue : '',
-                        label: `Page ${pi + 1}`,
-                        comicIndex: ci,
-                        panelIndex: pi,
-                    });
-                });
-            });
-        }
-
         function openViewer(comicIdx, panelIdx) {
-            currentSlide = allSlides.findIndex(
-                s => s.comicIndex === comicIdx && s.panelIndex === panelIdx
-            );
-            if (currentSlide === -1) currentSlide = 0;
+            const comic = comicsData[comicIdx];
+            const panel = comic.panels && comic.panels[panelIdx];
+            viewerImg.src = comic.image_paths[panelIdx];
+            viewerCaption.textContent = panel && panel.dialogue ? panel.dialogue : '';
             viewerOpen = true;
             viewer.classList.add('active');
             document.body.style.overflow = 'hidden';
-            updateViewer();
         }
 
         function closeViewer() {
@@ -244,40 +209,13 @@
             document.body.style.overflow = '';
         }
 
-        function navigate(dir) {
-            currentSlide = (currentSlide + dir + allSlides.length) % allSlides.length;
-            updateViewer();
-        }
-
-        function updateViewer() {
-            const slide = allSlides[currentSlide];
-            viewerImg.src = slide.src;
-            viewerCaption.textContent = slide.caption || slide.label;
-            viewerCounter.textContent = `${currentSlide + 1} / ${allSlides.length}`;
-        }
-
         function onOverlayClick(e) {
             if (e.target === viewer) closeViewer();
         }
 
-        // 키보드
+        // 키보드 (ESC로 닫기)
         document.addEventListener('keydown', (e) => {
-            if (!viewerOpen) return;
-            if (e.key === 'ArrowLeft') navigate(-1);
-            else if (e.key === 'ArrowRight') navigate(1);
-            else if (e.key === 'Escape') closeViewer();
-        });
-
-        // 스와이프 (모바일)
-        let touchStartX = 0;
-        viewer.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-        });
-        viewer.addEventListener('touchend', (e) => {
-            const diff = e.changedTouches[0].screenX - touchStartX;
-            if (Math.abs(diff) > 50) {
-                navigate(diff > 0 ? -1 : 1);
-            }
+            if (viewerOpen && e.key === 'Escape') closeViewer();
         });
 
         // 카카오 SDK 초기화
