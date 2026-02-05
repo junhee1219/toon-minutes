@@ -163,14 +163,6 @@
                         `).join('')}
                     </div>
                     <div class="download-section">
-                        <button class="download-btn" onclick="downloadAll(${ci})">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="7,10 12,15 17,10"/>
-                                <line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
-                            전체 다운로드
-                        </button>
                         <button class="download-btn kakao-share-btn" onclick="shareKakao(${ci})" style="background: #FEE500; color: #000;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 3C6.48 3 2 6.58 2 11c0 2.83 1.88 5.31 4.68 6.72l-.95 3.52c-.08.29.25.54.51.38l4.2-2.8c.5.05 1.02.08 1.56.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
@@ -265,17 +257,6 @@
                 URL.revokeObjectURL(link.href);
             } catch (error) {
                 window.open(url, '_blank');
-            }
-        }
-
-        async function downloadAll(comicIndex) {
-            const comic = comicsData[comicIndex];
-            for (let i = 0; i < comic.image_paths.length; i++) {
-                await downloadImage(
-                    comic.image_paths[i],
-                    `toon-minutes-part${comic.part_number}-panel${i + 1}.png`
-                );
-                await new Promise(r => setTimeout(r, 500));
             }
         }
 
