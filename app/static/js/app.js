@@ -1,14 +1,8 @@
 // API 서버 URL (GitHub Pages 배포 시 ngrok URL로 변경)
 const API_BASE_URL = '';  // 로컬: '', 배포: 'https://xxxx.ngrok-free.app'
 
-// ngrok 무료 버전 경고 페이지 우회용 헤더
-const ngrokHeaders = {
-    'ngrok-skip-browser-warning': 'true'
-};
-
-// fetch wrapper (ngrok 헤더 자동 추가)
 async function apiFetch(url, options = {}) {
-    const headers = { ...ngrokHeaders, ...options.headers };
+    const headers = { ...options.headers };
     return fetch(url, { ...options, headers });
 }
 
@@ -309,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // contenteditable에서 텍스트와 이미지 추출
             const { text, images } = await extractContent();
 
-            if (!text) {
+            if (!text || images.length === 0) {
                 throw new Error('내용을 입력해주세요.');
             }
 
