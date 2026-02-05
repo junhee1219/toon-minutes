@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // contenteditable에서 텍스트와 이미지 추출
             const { text, images } = await extractContent();
 
-            if (!text || images.length === 0) {
+            if (text?.trim()?.length === 0 && images.length === 0) {
                 throw new Error('내용을 입력해주세요.');
             }
 

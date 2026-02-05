@@ -10,6 +10,7 @@
     <title>결과 - Toon-Minutes</title>
     <link rel="stylesheet" href="static/css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐙</text></svg>">
+    <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js" integrity="sha384-DKYJZ8NLiK8MN4/C5P2dtSmLQ4KwPaoqAfyA/DfmEc1VDxu4ek/rmtCMGGz+IOLf" crossorigin="anonymous"></script>
     <style>
         @supports (padding: max(0px)) {
             body {
@@ -169,6 +170,12 @@
                             </svg>
                             전체 다운로드
                         </button>
+                        <button class="download-btn kakao-share-btn" onclick="shareKakao(${ci})" style="background: #FEE500; color: #000;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 3C6.48 3 2 6.58 2 11c0 2.83 1.88 5.31 4.68 6.72l-.95 3.52c-.08.29.25.54.51.38l4.2-2.8c.5.05 1.02.08 1.56.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
+                            </svg>
+                            카카오톡 공유
+                        </button>
                     </div>
                 </div>
             `).join('');
@@ -269,6 +276,38 @@
                 );
                 await new Promise(r => setTimeout(r, 500));
             }
+        }
+
+        // 카카오 SDK 초기화
+        Kakao.init('955207d0a5010d84ca62d1c8d706c2b6');
+
+        // 카카오톡 공유
+        function shareKakao(comicIndex) {
+            const comic = comicsData[comicIndex];
+            const firstImageUrl = comic.image_paths[0];
+            const currentUrl = window.location.href;
+
+            Kakao.Share.sendDefault({
+                objectType: 'feed',
+                content: {
+                    title: 'Toon-Minutes',
+                    description: '회의록을 4컷 만화로 변환했어요!',
+                    imageUrl: firstImageUrl,
+                    link: {
+                        mobileWebUrl: currentUrl,
+                        webUrl: currentUrl,
+                    },
+                },
+                buttons: [
+                    {
+                        title: '만화 보기',
+                        link: {
+                            mobileWebUrl: currentUrl,
+                            webUrl: currentUrl,
+                        },
+                    },
+                ],
+            });
         }
 
         // 페이지 로드 시 실행
