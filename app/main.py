@@ -46,9 +46,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Toon-Minutes",
+    title="toonify",
     description="4컷 만화로 변환하는 서비스",
-    version="0.2.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 

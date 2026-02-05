@@ -2,101 +2,13 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Toon-Minutes">
-    <meta name="theme-color" content="#000000">
-    <title>Toon-Minutes</title>
-    <link rel="stylesheet" href="static/css/style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐙</text></svg>">
-    <style>
-        @supports (padding: max(0px)) {
-            body {
-                padding-left: max(12px, env(safe-area-inset-left));
-                padding-right: max(12px, env(safe-area-inset-right));
-                padding-bottom: max(0px, env(safe-area-inset-bottom));
-            }
-        }
-    </style>
+    <meta http-equiv="refresh" content="0;url=https://toonify.kr">
+    <title>Toonify로 이동 중...</title>
+    <script>
+        window.location.replace('https://toonify.kr');
+    </script>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Toon-Minutes</h1>
-            <p>3줄 요약 대신 4컷 만화</p>
-            <div id="greeting" class="greeting hidden"></div>
-        </div>
-
-        <div id="form-section" class="card">
-            <form id="generate-form">
-                <div
-                    id="meeting-input"
-                    class="meeting-input"
-                    contenteditable="true"
-                    data-placeholder="회의록, 강의노트, 카톡 대화, 에러 로그... 무엇이든 만화로 만들어 드립니다 🎨"
-                ></div>
-                <button type="submit">만화 생성</button>
-            </form>
-        </div>
-
-        <div id="loading-section" class="hidden">
-            <div class="loading-card">
-                <div class="loading-animation">
-                    <div class="loading-dot"></div>
-                    <div class="loading-dot"></div>
-                    <div class="loading-dot"></div>
-                </div>
-
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
-                    </div>
-                    <div class="progress-text">
-                        <span id="progress-status">준비 중...</span>
-                        <span id="progress-percent">0%</span>
-                    </div>
-                </div>
-
-                <div class="message-area">
-                    <div class="status-badge" id="status-badge">생성 중</div>
-                    <p class="rotating-message" id="rotating-message">
-                        만화로 그리는 중...
-                    </p>
-                </div>
-
-                <div class="tip-area">
-                    <p class="tip-text">
-                        <span id="tip-text">만화 생성에는 1-2분 정도 소요됩니다</span>
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div id="error-section" class="hidden">
-            <div class="error-message" id="error-message"></div>
-        </div>
-
-        <div id="history-section" class="hidden">
-            <div class="history-header">
-                <h3>내 작업 내역</h3>
-            </div>
-            <div id="history-list" class="history-list"></div>
-        </div>
-
-        <footer class="footer">
-            <div class="footer-links">
-                <a href="https://kittly.shop" target="_blank">Kittly - 도구 모음</a>
-                <a href="https://ploma.site" target="_blank">Ploma - 팀 뽀모도로</a>
-                <a href="https://junhee1219.github.io/timer/" target="_blank">Timer - 개인용 타이머</a>
-            </div>
-            <p class="footer-contact">
-                문의/제안: <a href="mailto:help-whatever@naver.com">help-whatever@naver.com</a>
-            </p>
-        </footer>
-    </div>
-
-    <script src="static/js/app.js"></script>
+    <p>새 주소로 이동 중... <a href="https://toonify.kr">toonify.kr</a></p>
 </body>
 </html>

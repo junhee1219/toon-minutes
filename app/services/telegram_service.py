@@ -25,7 +25,7 @@ class TelegramService:
 
     def notify_server_started(self) -> None:
         """서버 시작 알림"""
-        self.send_message("🚀 Toon-Minutes 서버가 시작되었습니다!")
+        self.send_message("🚀 toonify server now starts")
 
     def notify_health_check(self) -> None:
         """헬스체크 알림"""
