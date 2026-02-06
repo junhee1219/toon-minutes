@@ -1,9 +1,11 @@
 import asyncio
 import json
 import logging
+import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.responses import JSONResponse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -66,6 +68,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# 전역 예외 핸들러 (AOP) - HTTP 요청 레벨 예외를 모두 캐치
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """모든 미처리 예외에 대해 stacktrace 로깅 + 텔레그램 알림"""
+    if isinstance(exc, HTTPException):
+        raise exc
+    logger.exception(f"Unhandled exception: {request.method} {request.url.path}")
+    telegram_service.notify_exception(
+        "http", f"{request.method} {request.url.path}",
+        traceback.format_exc(),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "서버 내부 오류가 발생했습니다."},
+    )
+
 
 # 정적 파일 및 템플릿 설정
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")

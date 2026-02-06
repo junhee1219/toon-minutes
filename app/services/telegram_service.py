@@ -55,6 +55,11 @@ class TelegramService:
         short_id = task_id[:8]
         self.send_message(f"❌ 실패 [{short_id}]\n{error[:200]}")
 
+    def notify_exception(self, service: str, method: str, error: str, task_id: str | None = None) -> None:
+        """예외 발생 알림"""
+        tid = f"[{task_id[:8]}] " if task_id else ""
+        self.send_message(f"🔥 예외 {tid}{service}.{method}\n{error[:500]}")
+
     async def _do_send(self, text: str) -> None:
         """실제 HTTP 전송 (내부용)"""
         try:

@@ -103,7 +103,7 @@ class ComicService:
             await db.commit()
 
         except Exception as e:
-            logger.error(f"[Task {short_id}] 만화 생성 실패: {e}")
+            logger.exception(f"[Task {short_id}] 만화 생성 실패: {e}")
             task.status = "failed"
             task.error_message = get_friendly_error_message(e)
             await db.commit()
@@ -173,7 +173,7 @@ class ComicService:
             )
 
         except Exception as e:
-            logger.error(f"[Task {short_id}] 만화 생성 실패: {e}")
+            logger.exception(f"[Task {short_id}] 만화 생성 실패: {e}")
             task.status = "failed"
             task.error_message = get_friendly_error_message(e)
             await db.commit()
