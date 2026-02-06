@@ -68,12 +68,12 @@ class ComicService:
             # 3. 에피소드 수에 따라 분기
             if len(panels) >= 2:
                 # 캐릭터 시트 방식: 레퍼런스 이미지 생성 후 병렬 처리
-                image_paths, sheet_elapsed, episode_elapsed = await self._generate_with_character_sheet(task, panels, short_id)
+                image_paths, sheet_elapsed, episode_elapsed = await self._generate_with_character_sheet(task, panels, short_id, task_id=task_id)
                 task.character_sheet_duration = round(sheet_elapsed, 1)
                 task.episode_image_duration = round(episode_elapsed, 1)
             else:
                 # 단일 에피소드: 기존 방식
-                image_paths, episode_elapsed = await self._generate_single(panels, short_id)
+                image_paths, episode_elapsed = await self._generate_single(panels, short_id, task_id=task_id)
                 task.episode_image_duration = round(episode_elapsed, 1)
 
             # 4. Comic 저장
@@ -136,7 +136,7 @@ class ComicService:
 
             # 2. LLM으로 시나리오 생성 (이미지 포함)
             scenario_start = time.time()
-            panels = await llm_service.analyze_meeting(meeting_text, images)
+            panels = await llm_service.analyze_meeting(meeting_text, images, task_id=task_id)
             scenario_elapsed = time.time() - scenario_start
             task.scenario_duration = round(scenario_elapsed, 1)
             logger.info(f"[Task {short_id}] 시나리오 생성 완료 ({scenario_elapsed:.1f}s) - {len(panels)}개 에피소드")
@@ -144,12 +144,12 @@ class ComicService:
             # 3. 에피소드 수에 따라 분기
             if len(panels) >= 2:
                 # 캐릭터 시트 방식: 레퍼런스 이미지 생성 후 병렬 처리
-                image_paths, sheet_elapsed, episode_elapsed = await self._generate_with_character_sheet(task, panels, short_id)
+                image_paths, sheet_elapsed, episode_elapsed = await self._generate_with_character_sheet(task, panels, short_id, task_id=task_id)
                 task.character_sheet_duration = round(sheet_elapsed, 1)
                 task.episode_image_duration = round(episode_elapsed, 1)
             else:
                 # 단일 에피소드: 기존 방식
-                image_paths, episode_elapsed = await self._generate_single(panels, short_id)
+                image_paths, episode_elapsed = await self._generate_single(panels, short_id, task_id=task_id)
                 task.episode_image_duration = round(episode_elapsed, 1)
 
             # 4. Comic 저장
@@ -180,12 +180,12 @@ class ComicService:
 
             telegram_service.notify_task_failed(task_id, str(e))
 
-    async def _generate_single(self, panels, short_id: str = "") -> tuple[list[str], float]:
+    async def _generate_single(self, panels, short_id: str = "", task_id: str | None = None) -> tuple[list[str], float]:
         """단일 에피소드 이미지 생성 (기존 방식)"""
         image_start = time.time()
         base_style_prompt = "Masterpiece, best quality, 2D Webtoon style, bold black outlines, flat colors, comic book layout, vibrant pastel tones. "
         async def generate_with_index(index: int, prompt: str):
-            path = await image_service.generate_image(base_style_prompt + prompt)
+            path = await image_service.generate_image(base_style_prompt + prompt, task_id=task_id)
             return index, path
 
         tasks = [
@@ -200,7 +200,7 @@ class ComicService:
         paths = [path for _, path in sorted(results, key=lambda x: x[0])]
         return paths, image_elapsed
 
-    async def _generate_with_character_sheet(self, task: Task, panels, short_id: str = "") -> tuple[list[str], float, float]:
+    async def _generate_with_character_sheet(self, task: Task, panels, short_id: str = "", task_id: str | None = None) -> tuple[list[str], float, float]:
         """캐릭터 시트를 먼저 생성하고, 이를 레퍼런스로 에피소드 이미지 생성"""
         # 1. 캐릭터 시트 프롬프트 직접 구성 (인물 정보만 추출)
         logger.info(f"[Task {short_id}] 캐릭터 시트 프롬프트 구성 중...")
@@ -226,7 +226,7 @@ Create a CHARACTER DESIGN SHEET (Turnaround view) for the main characters.
 
         # 2. 캐릭터 시트 이미지 생성 (flash 모델 사용)
         sheet_start = time.time()
-        character_sheet_url = await image_service.generate_image_fast(character_sheet_prompt)
+        character_sheet_url = await image_service.generate_image_fast(character_sheet_prompt, task_id=task_id)
         sheet_elapsed = time.time() - sheet_start
         logger.info(f"[Task {short_id}] 캐릭터 시트 생성 완료 ({sheet_elapsed:.1f}s)")
 
@@ -238,7 +238,7 @@ Create a CHARACTER DESIGN SHEET (Turnaround view) for the main characters.
         episode_start = time.time()
 
         async def generate_with_reference_index(index: int, prompt: str):
-            path = await image_service.generate_image_with_reference(prompt, character_sheet_url)
+            path = await image_service.generate_image_with_reference(prompt, character_sheet_url, task_id=task_id)
             return index, path
 
         tasks = [

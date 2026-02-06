@@ -86,8 +86,8 @@ async def generate_comic(
     telegram_service.notify_task_created(nickname, request.meeting_text)
 
     # 4. Validation + 시나리오 생성 병렬 시작
-    validation_task = asyncio.create_task(llm_service.validate_input(request.meeting_text))
-    scenario_task = asyncio.create_task(llm_service.analyze_meeting(request.meeting_text))
+    validation_task = asyncio.create_task(llm_service.validate_input(request.meeting_text, task_id=task.id))
+    scenario_task = asyncio.create_task(llm_service.analyze_meeting(request.meeting_text, task_id=task.id))
 
     # 5. Validation 결과 대기
     validation = await validation_task
@@ -198,8 +198,8 @@ async def generate_comic_with_images(
     telegram_service.notify_task_created(nickname, meeting_text)
 
     # 5. Validation + 시나리오 생성 병렬 시작 (이미지 포함)
-    validation_task = asyncio.create_task(llm_service.validate_input(meeting_text, image_bytes_list))
-    scenario_task = asyncio.create_task(llm_service.analyze_meeting(meeting_text, image_bytes_list))
+    validation_task = asyncio.create_task(llm_service.validate_input(meeting_text, image_bytes_list, task_id=task.id))
+    scenario_task = asyncio.create_task(llm_service.analyze_meeting(meeting_text, image_bytes_list, task_id=task.id))
 
     # 6. Validation 결과 대기
     validation = await validation_task

@@ -1,10 +1,12 @@
 import logging
+import time
 
 from google import genai
 from google.genai import types
 
 from app.config import settings
 from app.schemas import PanelScenario, ValidationResult
+from app.services.api_logger import log_api_call
 
 logger = logging.getLogger(__name__)
 
@@ -151,25 +153,72 @@ class LLMService:
         self.client = genai.Client(api_key=settings.gemini_api_key)
         self.model = "gemini-3-flash-preview"
 
-    async def _generate_with_retry(self, contents, config):
+    async def _generate_with_retry(
+        self, contents, config, task_id: str | None = None, method: str = ""
+    ):
         """재시도 로직이 포함된 API 호출 (즉시 3회 시도)"""
         last_error = None
 
         for attempt in range(3):
+            start = time.time()
             try:
-                return await self.client.aio.models.generate_content(
+                response = await self.client.aio.models.generate_content(
                     model=self.model,
                     contents=contents,
                     config=config,
                 )
+                duration = time.time() - start
+
+                # 응답 메타데이터 수집
+                response_meta = {"model_version": getattr(response, "model_version", None)}
+                if response.candidates:
+                    c = response.candidates[0]
+                    response_meta["finish_reason"] = str(getattr(c, "finish_reason", None))
+                    response_meta["safety_ratings"] = str(getattr(c, "safety_ratings", None))
+                    if c.content and c.content.parts:
+                        response_meta["parts_count"] = len(c.content.parts)
+                    else:
+                        response_meta["parts_count"] = 0
+                        response_meta["content_is_none"] = c.content is None
+                if response.parsed:
+                    parsed_str = str(response.parsed)
+                    response_meta["parsed_preview"] = parsed_str[:500]
+                else:
+                    response_meta["parsed"] = None
+
+                # 요청 메타데이터
+                request_meta = {
+                    "prompt": str(contents)[:1000],
+                    "temperature": getattr(config, "temperature", None),
+                    "response_schema": str(getattr(config, "response_schema", None)),
+                    "image_count": sum(1 for c in contents if hasattr(c, "inline_data")),
+                }
+
+                await log_api_call(
+                    task_id=task_id, service="llm", method=method, model=self.model,
+                    request_body=request_meta, response_body=response_meta,
+                    status="success", error_message=None,
+                    duration=duration, attempt=attempt + 1,
+                )
+                return response
+
             except Exception as e:
+                duration = time.time() - start
                 last_error = e
                 logger.warning(f"LLM API 호출 실패 (시도 {attempt + 1}/3): {type(e).__name__}: {e}")
+
+                await log_api_call(
+                    task_id=task_id, service="llm", method=method, model=self.model,
+                    request_body={"prompt": str(contents)[:1000]},
+                    response_body={},
+                    status="error", error_message=f"{type(e).__name__}: {e}",
+                    duration=duration, attempt=attempt + 1,
+                )
 
         logger.error(f"LLM API 호출 최종 실패: {type(last_error).__name__}: {last_error}")
         raise last_error
 
-    async def validate_input(self, text: str, images: list[bytes] = None) -> ValidationResult:
+    async def validate_input(self, text: str, images: list[bytes] = None, task_id: str | None = None) -> ValidationResult:
         """입력 텍스트가 만화로 변환할 만한 콘텐츠인지 검증하고, 대기 메시지 생성"""
         images = images or []
 
@@ -202,6 +251,8 @@ class LLMService:
                 response_mime_type="application/json",
                 response_schema=ValidationResult,
             ),
+            task_id=task_id,
+            method="validate_input",
         )
         logger.info(f"검증 응답 수신: model={response.model_version}")
 
@@ -211,7 +262,7 @@ class LLMService:
 
         return response.parsed
 
-    async def analyze_meeting(self, meeting_text: str, images: list[bytes] = None) -> list[PanelScenario]:
+    async def analyze_meeting(self, meeting_text: str, images: list[bytes] = None, task_id: str | None = None) -> list[PanelScenario]:
         """회의록을 분석하여 4컷 만화 시나리오 생성 (이미지 포함 가능)"""
         images = images or []
 
@@ -236,6 +287,8 @@ class LLMService:
                 response_mime_type="application/json",
                 response_schema=list[PanelScenario],
             ),
+            task_id=task_id,
+            method="analyze_meeting",
         )
         logger.info(f"Gemini 응답 수신: model={response.model_version}")
         logger.debug(f"응답 전체: {response}")

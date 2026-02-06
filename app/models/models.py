@@ -57,6 +57,7 @@ class Task(Base):
 
     visitor = relationship("Visitor", back_populates="tasks")
     comics = relationship("Comic", back_populates="task", cascade="all, delete-orphan")
+    api_logs = relationship("ApiLog", back_populates="task", cascade="all, delete-orphan")
 
 
 class Comic(Base):
@@ -74,3 +75,22 @@ class Comic(Base):
     task = relationship("Task", back_populates="comics")
 
 
+class ApiLog(Base):
+    """외부 API 호출 로그"""
+
+    __tablename__ = "api_logs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    task_id = Column(String(36), ForeignKey("tasks.id"), nullable=True)
+    service = Column(String(20))        # "llm" | "image"
+    method = Column(String(50))         # "analyze_meeting", "validate_input", "generate_image", etc.
+    model = Column(String(50))          # "gemini-3-flash-preview", "gemini-3-pro-image-preview"
+    request_body = Column(Text)         # 프롬프트/config JSON
+    response_body = Column(Text)        # 응답 메타데이터 JSON
+    status = Column(String(10))         # "success" | "error"
+    error_message = Column(Text, nullable=True)
+    duration = Column(Float)            # 초 단위
+    attempt = Column(Integer, default=1)  # 재시도 횟수 (1~3)
+    created_at = Column(DateTime, default=now_kst)
+
+    task = relationship("Task", back_populates="api_logs")

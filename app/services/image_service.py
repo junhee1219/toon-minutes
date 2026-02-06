@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import uuid
 from abc import ABC, abstractmethod
 from io import BytesIO
@@ -10,6 +11,7 @@ from google import genai
 from google.genai import types
 
 from app.config import settings
+from app.services.api_logger import log_api_call
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +47,15 @@ class NanoBananaImageService(ImageServiceInterface):
         )
         self.bucket = settings.s3_bucket
 
-    async def _generate_with_retry(self, prompt: str, model: str = None):
+    async def _generate_with_retry(self, prompt: str, model: str = None, task_id: str | None = None):
         """재시도 로직이 포함된 이미지 생성 (즉시 3회 시도)"""
         model = model or self.model
         last_error = None
 
         for attempt in range(3):
+            start = time.time()
             try:
-                return await self.client.aio.models.generate_content(
+                response = await self.client.aio.models.generate_content(
                     model=model,
                     contents=[prompt],
                     config=types.GenerateContentConfig(
@@ -63,16 +66,37 @@ class NanoBananaImageService(ImageServiceInterface):
                         response_modalities=["IMAGE", "TEXT"],
                     ),
                 )
+                duration = time.time() - start
+
+                response_meta = self._build_image_response_meta(response)
+                await log_api_call(
+                    task_id=task_id, service="image", method="generate_image", model=model,
+                    request_body={"prompt": prompt[:1000]},
+                    response_body=response_meta,
+                    status="success", error_message=None,
+                    duration=duration, attempt=attempt + 1,
+                )
+                return response
+
             except Exception as e:
+                duration = time.time() - start
                 last_error = e
                 logger.warning(f"이미지 생성 실패 (시도 {attempt + 1}/3): {type(e).__name__}: {e}")
+
+                await log_api_call(
+                    task_id=task_id, service="image", method="generate_image", model=model,
+                    request_body={"prompt": prompt[:1000]},
+                    response_body={},
+                    status="error", error_message=f"{type(e).__name__}: {e}",
+                    duration=duration, attempt=attempt + 1,
+                )
 
         logger.error(f"이미지 생성 최종 실패: {type(last_error).__name__}: {last_error}")
         raise last_error
 
-    async def generate_image(self, prompt: str) -> str:
+    async def generate_image(self, prompt: str, task_id: str | None = None) -> str:
         """Gemini API로 이미지 생성 후 S3에 업로드"""
-        response = await self._generate_with_retry(prompt)
+        response = await self._generate_with_retry(prompt, task_id=task_id)
 
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
@@ -80,11 +104,12 @@ class NanoBananaImageService(ImageServiceInterface):
 
         raise ValueError("이미지 생성 실패: 응답에 이미지가 없습니다")
 
-    async def generate_image_fast(self, prompt: str) -> str:
+    async def generate_image_fast(self, prompt: str, task_id: str | None = None) -> str:
         """Flash 모델로 빠른 이미지 생성 (캐릭터 시트용)"""
         last_error = None
 
         for attempt in range(3):
+            start = time.time()
             try:
                 response = await self.client.aio.models.generate_content(
                     model=self.flash_model,
@@ -97,10 +122,29 @@ class NanoBananaImageService(ImageServiceInterface):
                         response_modalities=["IMAGE", "TEXT"],
                     ),
                 )
+                duration = time.time() - start
+
+                response_meta = self._build_image_response_meta(response)
+                await log_api_call(
+                    task_id=task_id, service="image", method="generate_image_fast", model=self.flash_model,
+                    request_body={"prompt": prompt[:1000]},
+                    response_body=response_meta,
+                    status="success", error_message=None,
+                    duration=duration, attempt=attempt + 1,
+                )
                 break
             except Exception as e:
+                duration = time.time() - start
                 last_error = e
                 logger.warning(f"Flash 이미지 생성 실패 (시도 {attempt + 1}/3): {type(e).__name__}: {e}")
+
+                await log_api_call(
+                    task_id=task_id, service="image", method="generate_image_fast", model=self.flash_model,
+                    request_body={"prompt": prompt[:1000]},
+                    response_body={},
+                    status="error", error_message=f"{type(e).__name__}: {e}",
+                    duration=duration, attempt=attempt + 1,
+                )
         else:
             logger.error(f"Flash 이미지 생성 최종 실패: {type(last_error).__name__}: {last_error}")
             raise last_error
@@ -118,7 +162,7 @@ class NanoBananaImageService(ImageServiceInterface):
             response.raise_for_status()
             return response.content
 
-    async def _generate_with_reference_retry(self, prompt: str, reference_image: bytes):
+    async def _generate_with_reference_retry(self, prompt: str, reference_image: bytes, task_id: str | None = None):
         """레퍼런스 이미지를 참조하여 이미지 생성 (즉시 3회 시도)"""
         reference_instruction = """The attached image is a CHARACTER SHEET and STYLE REFERENCE.
 You MUST maintain exactly:
@@ -133,8 +177,9 @@ Now draw the following scene using these characters and style:
         last_error = None
 
         for attempt in range(3):
+            start = time.time()
             try:
-                return await self.client.aio.models.generate_content(
+                response = await self.client.aio.models.generate_content(
                     model=self.model,
                     contents=[
                         types.Part.from_bytes(data=reference_image, mime_type="image/png"),
@@ -148,26 +193,65 @@ Now draw the following scene using these characters and style:
                         response_modalities=["IMAGE", "TEXT"],
                     ),
                 )
+                duration = time.time() - start
+
+                response_meta = self._build_image_response_meta(response)
+                await log_api_call(
+                    task_id=task_id, service="image", method="generate_image_with_reference", model=self.model,
+                    request_body={"prompt": prompt[:1000], "has_reference_image": True},
+                    response_body=response_meta,
+                    status="success", error_message=None,
+                    duration=duration, attempt=attempt + 1,
+                )
+                return response
+
             except Exception as e:
+                duration = time.time() - start
                 last_error = e
                 logger.warning(f"레퍼런스 이미지 생성 실패 (시도 {attempt + 1}/3): {type(e).__name__}: {e}")
+
+                await log_api_call(
+                    task_id=task_id, service="image", method="generate_image_with_reference", model=self.model,
+                    request_body={"prompt": prompt[:1000], "has_reference_image": True},
+                    response_body={},
+                    status="error", error_message=f"{type(e).__name__}: {e}",
+                    duration=duration, attempt=attempt + 1,
+                )
 
         logger.error(f"레퍼런스 이미지 생성 최종 실패: {type(last_error).__name__}: {last_error}")
         raise last_error
 
-    async def generate_image_with_reference(self, prompt: str, reference_image_url: str) -> str:
+    async def generate_image_with_reference(self, prompt: str, reference_image_url: str, task_id: str | None = None) -> str:
         """레퍼런스 이미지를 참조하여 이미지 생성 후 S3에 업로드"""
         # 레퍼런스 이미지 다운로드
         reference_image = await self._fetch_image(reference_image_url)
 
         # 레퍼런스와 함께 이미지 생성
-        response = await self._generate_with_reference_retry(prompt, reference_image)
+        response = await self._generate_with_reference_retry(prompt, reference_image, task_id=task_id)
 
         for part in response.candidates[0].content.parts:
             if part.inline_data is not None:
                 return await self.upload_bytes_to_s3(part.inline_data.data, prefix="toon-minutes")
 
         raise ValueError("이미지 생성 실패: 응답에 이미지가 없습니다")
+
+    @staticmethod
+    def _build_image_response_meta(response) -> dict:
+        """이미지 생성 응답에서 로깅용 메타데이터 추출"""
+        meta = {}
+        if response.candidates:
+            c = response.candidates[0]
+            meta["finish_reason"] = str(getattr(c, "finish_reason", None))
+            if c.content and c.content.parts:
+                meta["parts_count"] = len(c.content.parts)
+                meta["has_image"] = any(
+                    getattr(p, "inline_data", None) is not None for p in c.content.parts
+                )
+            else:
+                meta["parts_count"] = 0
+                meta["has_image"] = False
+                meta["content_is_none"] = c.content is None
+        return meta
 
     async def upload_bytes_to_s3(self, image_bytes: bytes, prefix: str = "meeting-img") -> str:
         """바이트 데이터를 S3에 업로드하고 URL 반환"""
