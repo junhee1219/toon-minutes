@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Toonify로 이동 중...</title>
+    <script>
+        // ?task=xxx 파라미터를 /view/xxx 경로로 변환
+        const params = new URLSearchParams(window.location.search);
+        const taskId = params.get('task');
+
+        if (taskId) {
+            window.location.replace('https://toonify.kr/view/' + taskId);
+        } else {
+            window.location.replace('https://toonify.kr');
+        }
+    </script>
+</head>
+<body>
+    <p>새 주소로 이동 중... <a href="https://toonify.kr">toonify.kr</a></p>
+</body>
+</html>
